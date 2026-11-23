@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Brevet City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: jeu d'action en monde ouvert, nerveux et fun, mais lisible pour réviser
+   IDEA: une ville de bord de mer au coucher du soleil ; chaque semaine est une mission, la tour du brevet au bout
+   PICTURE: le plan de Brevet City vu du ciel, néons, plage, palmiers, marqueur GPS sur la mission en cours
+   COLOUR and TYPE: nuit violette, rose néon, orange coucher de soleil, turquoise ; Anton + Atkinson Hyperlegible
+   LAYOUT: HUD en haut, plan, panneau de mission ; en mission, un écran à la fois avec bandeaux de jeu */
+:root{color-scheme:dark;
+--bg:#140a24;--card:#1f1236;--ink:#fff4fb;--soft:#c9b6d9;
+--sky:#1a1030;--r1:#ff8a3d;--r2:#ff2e88;--r3:#19d3c5;
+--act:#ff2e88;--act2:#a3105a;--good:#3ddc84;--bad:#ff4d4d;
+--line:#3a2558;--chip:#2a1946;--hi:#ffd23f}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:linear-gradient(180deg,rgba(255,138,61,.22),rgba(255,46,136,.08) 220px,transparent 420px),var(--bg);color:var(--ink);font:17px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--act);outline-offset:2px}
+h1,h2,h3,.title{font-family:Anton,Impact,"Arial Narrow",sans-serif;font-weight:400;line-height:1.05;margin:0;text-wrap:balance;letter-spacing:.01em;text-transform:uppercase}
+.top{display:flex;align-items:center;gap:10px;padding:14px max(4vw,14px);flex-wrap:wrap}
+.top h1{font-size:clamp(30px,5vw,44px);margin-right:auto;color:var(--r2);text-shadow:3px 3px 0 var(--r1)}
+.pill{background:var(--chip);border-radius:99px;padding:6px 14px;font-weight:700;font-size:15px;white-space:nowrap}
+.pbtn{background:var(--chip);border-radius:99px;padding:8px 16px;font-weight:700;min-height:44px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 max(4vw,14px) 40px}
+.mapbox{background:var(--sky);border-radius:22px;overflow:hidden;box-shadow:0 0 0 2px var(--r2),0 0 28px rgba(255,46,136,.35)}
+.mapbox svg{display:block;width:100%;height:auto}
+.panel{background:var(--card);border-radius:22px;padding:clamp(18px,3vw,30px);margin-top:16px;box-shadow:0 0 0 1px var(--line)}
+.go{background:var(--act);color:#fff;font-family:Anton,Impact,sans-serif;font-weight:400;letter-spacing:.03em;text-transform:uppercase;font-size:21px;border-radius:16px;padding:12px 24px;min-height:54px;box-shadow:0 5px 0 var(--act2)}
+.go:active{transform:translateY(3px);box-shadow:0 2px 0 var(--act2)}
+.go.big{width:100%;font-size:clamp(20px,3vw,27px);padding:16px}
+.go[disabled]{opacity:.45}
+.sec{background:var(--chip);font-weight:700;border-radius:14px;padding:10px 16px;min-height:48px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+.weeks{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.wk{background:var(--chip);border-radius:12px;padding:8px 12px;min-height:44px;font-weight:700;font-size:14px}
+.wk.cur{background:var(--hi);color:#140a24}
+.muted{color:var(--soft);font-size:15px}
+.kicker{font-weight:700;color:var(--r3);margin:0 0 6px;font-size:15px;text-transform:uppercase;letter-spacing:.06em}
+.mbar{display:flex;align-items:center;gap:12px;padding:12px max(4vw,14px)}
+.dots{display:flex;gap:6px;margin-right:auto}
+.dots i{width:40px;height:10px;border-radius:9px;background:var(--line)}
+.dots i.on{background:var(--act)}.dots i.done{background:var(--r1)}
+.clock{display:flex;align-items:center;gap:8px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock svg{width:36px;height:36px}
+.stage{background:var(--card);border-radius:22px;max-width:860px;margin:0 auto;padding:clamp(20px,4vw,38px);min-height:58vh;box-shadow:0 0 0 1px var(--line),0 0 30px rgba(25,211,197,.12)}
+.stage h2{font-size:clamp(28px,4.6vw,42px);font-weight:800}
+.q{font-size:clamp(21px,3.2vw,28px);font-weight:700;margin:12px 0 0;line-height:1.35}
+.hint{color:var(--soft);margin:8px 0 0}
+.opts{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:18px}
+.opt{text-align:left;background:var(--chip);border:3px solid var(--line);border-radius:16px;padding:12px 16px;min-height:60px;font-size:clamp(17px,2.4vw,21px);font-weight:700}
+.opt:hover{border-color:var(--act)}
+.opt.ok{background:var(--good);border-color:var(--good);color:#fff}
+.opt.no{background:var(--bad);border-color:var(--bad);color:#fff}
+.fbok{color:var(--good);font-family:Anton,Impact,sans-serif;text-transform:uppercase;font-size:30px;margin:14px 0 0}
+.fbno{color:var(--bad);font-weight:700;margin:14px 0 6px}
+.expl{background:var(--chip);border-radius:14px;padding:12px 14px;margin-top:8px}
+.tiles{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.tile{background:var(--chip);border:3px solid var(--line);border-radius:12px;padding:8px 14px;font-size:20px;font-weight:700;min-height:52px}
+.tile[disabled]{opacity:.25}
+.line{min-height:64px;border:3px dashed var(--line);border-radius:14px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:22px;font-weight:700;margin-top:14px}
+input[type=text],textarea,select{font:inherit;font-size:18px;width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--chip);color:var(--ink);min-height:50px}
+textarea{min-height:110px;resize:vertical}
+select{max-width:380px}
+.acc{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.acc button{background:var(--chip);border-radius:10px;min-width:44px;min-height:44px;font-weight:700;font-size:19px}
+.check{display:grid;gap:8px;margin-top:12px}
+.check label{display:flex;gap:10px;align-items:flex-start;font-weight:400}
+.check input{width:24px;height:24px;flex:none;margin-top:2px}
+.model{background:var(--hi);color:#1e1b2e;border-radius:14px;padding:12px 16px;font-weight:700;margin-top:10px}
+.stars{display:flex;gap:10px;justify-content:center;margin:12px 0}
+.stars svg{width:clamp(54px,11vw,80px)}
+.week7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:10px;max-width:420px}
+.week7 div{aspect-ratio:1;border-radius:12px;background:var(--chip);display:grid;place-items:center;font-weight:700;font-size:14px;color:var(--soft)}
+.week7 div.on{background:var(--r2);color:#fff}
+.bars{display:grid;gap:8px;margin-top:10px}
+.bar{display:grid;grid-template-columns:8em minmax(0,1fr) 3.5em;gap:10px;align-items:center;font-size:15px}
+.bar b{display:block;height:16px;border-radius:8px;background:var(--r1)}
+.bar span:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.dict{font-size:clamp(19px,2.6vw,23px);line-height:1.8;margin-top:12px}
+.dict .ko{background:rgba(196,47,38,.18);text-decoration:underline wavy var(--bad);border-radius:4px}
+.dict .miss{color:var(--bad);font-weight:700}
+.err{border-top:1px solid var(--line);padding:10px 0}
+label.lb{font-weight:700;display:block;margin:14px 0 6px}
+.chk{display:flex;gap:10px;align-items:center;margin-top:14px}
+.chk input{width:24px;height:24px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:24px}
+.ai{white-space:pre-wrap;background:var(--chip);border-radius:14px;padding:12px 14px;margin-top:10px}
+.climber{animation:bob 1.8s ease-in-out infinite}.pulse{animation:pulse 1.4s ease-out infinite;transform-box:fill-box;transform-origin:center}@keyframes pulse{0%{opacity:.9;transform:scale(.6)}100%{opacity:0;transform:scale(1.8)}}
+.banner{margin:6px -10px 8px;padding:14px 18px;background:linear-gradient(90deg,var(--r2),var(--r1));transform:skewX(-8deg);text-align:center}.banner h2{transform:skewX(8deg);color:#fff;font-size:clamp(34px,7vw,58px);text-shadow:3px 3px 0 #140a24}
+.hud{font-family:Anton,Impact,sans-serif;letter-spacing:.04em;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:6px 12px;white-space:nowrap}.hud .xp{color:var(--good)}.hud .st{color:var(--hi)}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.msg{display:flex;gap:12px;align-items:center;margin:10px 0}.msg svg{flex:none;filter:drop-shadow(0 0 6px rgba(25,211,197,.55))}.msg svg path{animation:nova 1.2s ease-in-out infinite}@keyframes nova{50%{opacity:.35}}@media (prefers-reduced-motion:reduce){.msg svg path{animation:none}}
+.bub{position:relative;background:#fff4fb;color:#140a24;border-radius:16px;padding:10px 14px;margin:0;font-weight:700;max-width:560px}
+.bub b{color:var(--act2)}
+.foe{float:right;width:84px;margin:0 0 6px 12px;text-align:center}.foe svg{width:84px;height:84px;display:block}
+.foe.hit svg{animation:poof .6s forwards}.foe.laugh svg{animation:shake .5s}
+@keyframes poof{40%{transform:scale(1.25);filter:brightness(2)}100%{transform:scale(.2);opacity:0}}
+@keyframes shake{25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.road{border-radius:18px;overflow:hidden;box-shadow:0 0 0 2px var(--r2)}.road svg{display:block;width:100%;height:auto}
+.drive{animation:drive 2.6s linear forwards}@keyframes drive{from{transform:translateX(-240px)}to{transform:translateX(640px)}}
+.garage{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px;margin-top:14px}
+.gcard{background:var(--chip);border-radius:16px;padding:14px;border:3px solid transparent}.gcard.sel{border-color:var(--r2)}.gcard.lock{opacity:.55}
+.gcard svg{width:100%;height:auto;display:block;background:radial-gradient(ellipse at 50% 70%,#2c3a2e 0,#141a16 70%);border-radius:12px}.gcard h3{font-size:22px;margin:6px 0 4px}
+.fault{display:flex;align-items:center;gap:14px;margin:10px 0}.fault .foe{float:none;margin:0;flex:none;width:72px}.fault .foe svg{width:72px;height:72px}.fault .fbno{margin:0}
+.gbar{margin:16px 0 6px;padding:12px;border:1px dashed var(--line);border-radius:14px;clear:both}.gt{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--r3);font-weight:700}.gads{display:flex;flex-wrap:wrap;gap:8px}.gad{flex:1 1 150px;display:flex;flex-direction:column;gap:3px;text-align:left;background:#140a24;color:#fff;border:2px solid var(--r3);border-radius:12px;padding:8px 10px;cursor:pointer;font:inherit;box-shadow:0 0 10px rgba(25,211,197,.25)}.gad b{font-size:15px}.gad span{font-size:14px;opacity:.9}.gad i{font-style:normal;font-size:12px;color:var(--r3)}.gad:disabled{opacity:.42;cursor:default;box-shadow:none}.gnote{margin:8px 0 0;font-size:14px}.opt.gone{opacity:.25;text-decoration:line-through}
+.sndnote{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);width:min(92vw,560px);background:#fff4fb;color:#140a24;border-radius:14px;padding:12px 16px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:50}.sec.on{box-shadow:0 0 0 3px var(--r3),0 0 14px rgba(25,211,197,.6)}
+.zap{color:var(--r3);font-family:Anton,Impact,sans-serif;text-transform:uppercase;letter-spacing:.03em}
+@media(prefers-reduced-motion:reduce){.climber,.pulse,.drive,.foe.hit svg,.foe.laugh svg{animation:none}.drive{transform:translateX(200px)}}
+@media(max-width:600px){.dots i{width:24px}.bar{grid-template-columns:6.5em minmax(0,1fr) 3em}}
+</style>
+</head>
+<body>
+<div id="view"></div>
+<script>
+{
+/* ---------- banques d'exercices : [question, choix, index bonne réponse, explication] ---------- */
+const B={
+classes:{tag:"6e",items:[
+["Dans « Il marche vite », « vite » est…",["un adverbe","un adjectif","un nom"],0,"« vite » modifie le verbe « marche » : c'est un adverbe, invariable."],
+["Dans « Ce roman est passionnant », « ce » est…",["un déterminant démonstratif","un pronom démonstratif","un adjectif"],0,"« ce » accompagne le nom « roman » : c'est un déterminant."],
+["Dans « Elle le regarde », « le » est…",["un pronom personnel","un déterminant","une préposition"],0,"« le » remplace un nom et sert de COD : pronom personnel."],
+["« Pendant » est…",["une préposition","une conjonction de coordination","un adverbe"],0,"« pendant » introduit un groupe nominal : préposition."],
+["Dans « Il partit parce qu'il était las », « parce qu' » est…",["une conjonction de subordination","une conjonction de coordination","une préposition"],0,"Il introduit une proposition subordonnée."],
+["Dans « Ses souvenirs sont précieux », « précieux » est…",["un adjectif","un adverbe","un nom"],0,"Il qualifie « souvenirs » et s'accorde avec lui."],
+["Dans « Celui-ci me plaît », « celui-ci » est…",["un pronom démonstratif","un déterminant démonstratif","un adverbe"],0,"Il remplace un nom : pronom."]]},
+fonctions:{tag:"6e-5e",items:[
+["« Il parle à son frère. » Fonction de « à son frère » ?",["COI","COD","CC de lieu"],0,"On parle à quelqu'un : complément introduit par « à », non déplaçable."],
+["« Les élèves lisent un roman. » Fonction de « un roman » ?",["COD","sujet","attribut du sujet"],0,"Ils lisent quoi ? un roman."],
+["« Elle semble heureuse. » Fonction de « heureuse » ?",["attribut du sujet","COD","épithète"],0,"Après le verbe d'état « sembler »."],
+["« Chaque matin, il écrit son journal. » Fonction de « Chaque matin » ?",["CC de temps","sujet","COD"],0,"Déplaçable, supprimable, il dit quand."],
+["« Le vieux château domine la ville. » Fonction de « vieux » ?",["épithète","attribut du sujet","COD"],0,"Adjectif placé directement à côté du nom."],
+["« Rousseau, philosophe genevois, se raconte. » Fonction de « philosophe genevois » ?",["apposition","COD","attribut du sujet"],0,"Groupe détaché par des virgules qui précise le nom."],
+["« Le roi a été trahi par son fils. » Fonction de « par son fils » ?",["complément d'agent","COI","CC de moyen"],0,"Dans une phrase passive, il indique qui fait l'action."]]},
+props:{tag:"5e",items:[
+["Combien de propositions dans « Il pleut, je reste à la maison et je lis. » ?",["3","2","1"],0,"Trois verbes conjugués : pleut, reste, lis."],
+["« Il pleut, je reste. » Les propositions sont…",["juxtaposées","coordonnées","subordonnées"],0,"Reliées par une virgule."],
+["« Il pleut mais je sors. » Les propositions sont…",["coordonnées","juxtaposées","subordonnées"],0,"Reliées par « mais », conjonction de coordination."],
+["« Je sors bien qu'il pleuve. » « bien qu'il pleuve » est une proposition…",["subordonnée","indépendante","principale"],0,"Introduite par une conjonction de subordination."],
+["Laquelle est une phrase simple ?",["Au lever du soleil, le jeune homme quitta son village.","Il partit quand le soleil se leva.","Il se leva, il partit."],0,"Un seul verbe conjugué."],
+["Dans « Je crois qu'il ment », quelle est la principale ?",["Je crois","qu'il ment","il ment"],0,"La principale est celle dont dépend la subordonnée."]]},
+sub:{tag:"4e",items:[
+["« Le livre dont je parle est ancien. » « dont je parle » est une subordonnée…",["relative","complétive","circonstancielle"],0,"Introduite par le pronom relatif « dont », elle complète « livre »."],
+["« Je sais qu'il viendra. » « qu'il viendra » est une subordonnée…",["complétive","relative","circonstancielle"],0,"Introduite par « que », COD de « sais »."],
+["« La ville où je suis né a changé. » Antécédent de « où » ?",["la ville","je","né"],0,"Le pronom relatif reprend le nom « ville »."],
+["« L'homme que tu vois est poète. » Fonction de « que » dans la relative ?",["COD de « vois »","sujet de « vois »","COI"],0,"Tu vois qui ? l'homme, repris par « que »."],
+["« Il annonce que la guerre est finie. » Fonction de la subordonnée ?",["COD de « annonce »","sujet","complément du nom"],0,"Il annonce quoi ? → complétive COD."],
+["Complète : « C'est une œuvre ___ l'auteur est célèbre. »",["dont","que","où"],0,"L'auteur de l'œuvre : complément du nom → « dont »."],
+["Complète : « Le pays ___ je rêve est lointain. »",["dont","que","où"],0,"Rêver de quelque chose → « dont »."]]},
+cc:{tag:"3e",items:[
+["« Comme il pleuvait, le défilé fut annulé. » La subordonnée exprime…",["la cause","la conséquence","le but"],0,"« Comme » en tête de phrase introduit la cause."],
+["« Il était si fatigué qu'il s'endormit. » La relation est…",["la conséquence","la cause","la concession"],0,"« si… que » exprime la conséquence."],
+["Choisis : « Il a beaucoup lu ; ___, il connaît bien Hugo. »",["c'est pourquoi","pourtant","bien que"],0,"Avoir beaucoup lu entraîne la connaissance : conséquence."],
+["Choisis : « Il reste chez lui ___ il est malade. »",["parce qu'","bien qu'","afin qu'"],0,"La maladie est la cause."],
+["Choisis : « ___ tu insistes, je viendrai. »",["Puisque","Pour que","Bien que"],0,"« Puisque » : cause connue de tous."],
+["Quel connecteur exprime la cause ?",["en effet","par conséquent","néanmoins"],0,"« en effet » justifie ce qui précède."],
+["Choisis : « Il parlait fort, ___ tout le monde l'entendait. »",["si bien que","bien que","pour que"],0,"Conséquence + indicatif."]]},
+bo:{tag:"3e",items:[
+["« Il travaille pour que ses enfants soient libres. » Relation ?",["le but","la cause","la conséquence"],0,"« pour que » exprime le but, suivi du subjonctif."],
+["Choisis le bon mode : « Afin que tu ___ la vérité… »",["saches","sais","sauras"],0,"« afin que » est toujours suivi du subjonctif."],
+["« Ismène obéit, alors qu'Antigone refuse. » Relation ?",["l'opposition","la cause","le but"],0,"Deux attitudes mises face à face."],
+["Choisis : « Il aime la ville ; ___, sa sœur préfère la campagne. »",["en revanche","c'est pourquoi","en effet"],0,"Opposition entre deux préférences."],
+["Choisis : « Il étudie ___ réussir. »",["afin de","afin que","parce que"],0,"Même sujet : préposition + infinitif."],
+["« De peur qu'on ne le reconnaisse, il se cacha. » Relation ?",["le but (éviter quelque chose)","la cause","la conséquence"],0,"« de peur que » : but négatif, + subjonctif."]]},
+conc:{tag:"3e",items:[
+["« Bien qu'il soit roi, Créon doute. » Relation ?",["la concession","la cause","la conséquence"],0,"On admet un fait qui n'empêche pas l'autre."],
+["Choisis le bon mode : « Bien qu'il ___ tard, il continue. »",["soit","est","sera"],0,"« bien que » est suivi du subjonctif."],
+["Choisis le bon mode : « Même si tu ___ raison, tais-toi. »",["as","aies","aurais"],0,"« même si » est suivi de l'indicatif."],
+["Quelle phrase est correcte ?",["Malgré la pluie, il sortit.","Malgré qu'il pleuve, il sortit.","Malgré qu'il pleut, il sortit."],0,"« malgré » + nom ; « malgré que » est à éviter."],
+["Choisis : « Il était épuisé ; ___, il termina la course. »",["pourtant","donc","car"],0,"La fatigue aurait dû l'arrêter : concession."],
+["Choisis : « ___ il fût pauvre, il restait généreux. »",["Quoiqu'","Parce qu'","Puisqu'"],0,"« quoique » (= bien que) + subjonctif."],
+["« quoique » ou « quoi que » : « ___ tu dises, je pars. »",["Quoi que","Quoique"],0,"« Quoi que » = quelle que soit la chose que."],
+["« Certes, la science progresse, mais elle inquiète. » Ce mouvement est…",["une concession suivie d'une objection","une cause","une conséquence"],0,"« certes… mais » : on concède, puis on objecte."]]},
+cond:{tag:"3e",items:[
+["Choisis : « Si j'___ su, je serais venu. »",["avais","aurais","aie"],0,"Jamais de conditionnel après « si »."],
+["Choisis : « Si tu viens, nous ___ ensemble. »",["partirons","partirions","partions"],0,"Si + présent → futur."],
+["Choisis : « Si tu venais, nous ___ ensemble. »",["partirions","partirons","partîmes"],0,"Si + imparfait → conditionnel présent."],
+["Choisis le mode : « Il viendra à condition qu'on l'___. »",["invite","invitera","inviterait"],0,"« à condition que » + subjonctif."],
+["Choisis le mode : « Au cas où il ___, préviens-moi. »",["pleuvrait","pleuve","pleut"],0,"« au cas où » + conditionnel."],
+["« S'il avait écouté, il aurait compris. » Ce système exprime…",["l'irréel du passé","le potentiel","une cause"],0,"Si + plus-que-parfait → conditionnel passé."],
+["Choisis : « Pourvu qu'il ___ beau demain ! »",["fasse","fait","fera"],0,"« pourvu que » + subjonctif."]]},
+subjf:{tag:"4e",items:[
+["Il faut que tu ___ (finir).",["finisses","finis","finiras"],0,"Radical de « ils finissent » + -es."],
+["Il faut qu'il ___ (faire) attention.",["fasse","fait","fera"],0,"Faire → qu'il fasse."],
+["Je veux que nous ___ (aller) au théâtre.",["allions","allons","irons"],0,"Aller → que nous allions."],
+["Il faut que vous ___ (être) prêts.",["soyez","êtes","serez"],0,"Être → que vous soyez."],
+["Il faut qu'ils ___ (avoir) du courage.",["aient","ont","auront"],0,"Avoir → qu'ils aient."],
+["Il faut que tu ___ (pouvoir) venir.",["puisses","peux","pourras"],0,"Pouvoir → que tu puisses."],
+["Il faut qu'elle ___ (savoir) la vérité.",["sache","sait","saura"],0,"Savoir → qu'elle sache."],
+["Il faut que nous ___ (prendre) une décision.",["prenions","prenons","prendrons"],0,"Prendre → que nous prenions."]]},
+subje:{tag:"3e",items:[
+["« Je doute qu'il vienne. » Pourquoi le subjonctif ?",["le verbe principal exprime un doute","c'est une cause","c'est un fait certain"],0,"Le subjonctif présente un fait envisagé, pas certain."],
+["Choisis : « Je suis sûr qu'il ___ là. »",["est","soit","fût"],0,"Certitude → indicatif."],
+["Choisis : « Je ne pense pas qu'il ___ raison. »",["ait","a","aura"],0,"« penser » à la forme négative exprime le doute → subjonctif."],
+["Choisis : « Je souhaite que tu ___ (réussir). »",["réussisses","réussis","réussiras"],0,"Souhait → subjonctif."],
+["Choisis : « Après qu'il ___ parti, nous avons parlé. »",["est","soit","fût"],0,"« après que » + indicatif (fait accompli)."],
+["Choisis : « Avant qu'il ne ___ trop tard… »",["soit","est","sera"],0,"« avant que » + subjonctif ; le « ne » est facultatif."],
+["Choisis : « Je suis heureux que tu ___ là. »",["sois","es","seras"],0,"Sentiment → subjonctif."]]},
+ps:{tag:"6e-5e",items:[
+["Il ___ (venir) à l'aube.",["vint","vînt","venait"],0,"Passé simple : il vint, sans accent."],
+["Ils ___ (prendre) la route.",["prirent","prenèrent","prendirent"],0,"Prendre → ils prirent."],
+["Nous ___ (chanter) ensemble.",["chantâmes","chantions","chantèrent"],0,"1er groupe : -âmes à « nous »."],
+["Elle ___ (voir) la mer.",["vit","voya","vut"],0,"Voir → elle vit."],
+["Tu ___ (être) le premier.",["fus","fut","étais"],0,"Être → tu fus."],
+["Vous ___ (avoir) peur.",["eûtes","eûmes","eurent"],0,"Avoir → vous eûtes."],
+["Il ___ (faire) un geste.",["fit","fut","faisa"],0,"Faire → il fit."],
+["Ils ___ (pouvoir) fuir.",["purent","pouvèrent","pûrent"],0,"Pouvoir → ils purent."]]},
+isj3:{tag:"3e",items:[
+["Bien qu'il ___ roi, il doutait.",["fût","fut","soit"],0,"Après « bien que », au passé et en langue soutenue : imparfait du subjonctif, avec accent."],
+["Il ___ roi pendant dix ans.",["fut","fût","soit"],0,"Fait réel au passé : passé simple, sans accent."],
+["Il fallait qu'il ___ peur.",["eût","eut","a"],0,"« il fallait que » + imparfait du subjonctif."],
+["Dès qu'il ___ fini, il partit.",["eut","eût","ait"],0,"« dès que » + indicatif (passé antérieur) : pas d'accent."],
+{t:1,q:"venir → qu'il ___",ans:["vînt"],x:"Passé simple « tu vins » → que je vinsse → qu'il vînt."},
+{t:1,q:"faire → qu'il ___",ans:["fît"],x:"« tu fis » → qu'il fît."},
+{t:1,q:"pouvoir → qu'il ___",ans:["pût"],x:"« tu pus » → qu'il pût."},
+{t:1,q:"chanter → qu'il ___",ans:["chantât"],x:"« tu chantas » → qu'il chantât."},
+{t:1,q:"aller → qu'il ___",ans:["allât"],x:"« tu allas » → qu'il allât."},
+{t:1,q:"prendre → qu'il ___",ans:["prît"],x:"« tu pris » → qu'il prît."}]},
+isj:{tag:"3e",items:[
+{t:1,q:"être → que je ___",ans:["fusse"],x:"« tu fus » + -se → que je fusse."},
+{t:1,q:"avoir → qu'ils ___",ans:["eussent"],x:"« tu eus » → qu'ils eussent."},
+{t:1,q:"chanter → que nous ___",ans:["chantassions"],x:"chanta- + -ssions."},
+{t:1,q:"finir → que vous ___",ans:["finissiez"],x:"Même forme qu'au subjonctif présent pour « finir » à « vous »."},
+{t:1,q:"venir → que tu ___",ans:["vinsses"],x:"vin- + -sses."},
+{t:1,q:"savoir → qu'il ___",ans:["sût"],x:"« tu sus » → qu'il sût."},
+["« Il eût fallu partir. » « eût fallu » équivaut à…",["il aurait fallu","il a fallu","il faudrait"],0,"Plus-que-parfait du subjonctif à valeur de conditionnel passé."],
+["Plus-que-parfait du subjonctif de « venir » à la 3e personne :",["qu'il fût venu","qu'il soit venu","qu'il était venu"],0,"Auxiliaire « être » à l'imparfait du subjonctif + participe passé."]]},
+ct:{tag:"3e",items:[
+["Langue soutenue : « Je voulais qu'il ___ (venir). »",["vînt","vienne","viendrait"],0,"Principale au passé → imparfait du subjonctif en langue soutenue."],
+["Langue courante : « Je voulais qu'il ___ (venir). »",["vienne","vînt","venait"],0,"En langue courante, on garde le subjonctif présent."],
+["« Je veux qu'il ___ (venir). »",["vienne","vînt","vient"],0,"Principale au présent → subjonctif présent."],
+["Soutenu, fait antérieur : « Je doutais qu'il ___ (partir) la veille. »",["fût parti","soit parti","partît"],0,"Antériorité au passé soutenu → plus-que-parfait du subjonctif."],
+["« Je doute qu'il ___ (partir) hier. »",["soit parti","fût parti","parte"],0,"Antériorité, principale au présent → subjonctif passé."],
+["Dans « Il fallait qu'elle partît », « partît » est…",["à l'imparfait du subjonctif","au passé simple","au subjonctif présent"],0,"Accent circonflexe + t, après « il fallait que »."]]},
+dr:{tag:"4e",items:[
+["« Il dit : “Je pars.” » → au discours indirect : Il dit…",["qu'il part.","qu'il partait.","que je pars."],0,"Verbe introducteur au présent : le temps ne change pas ; « je » devient « il »."],
+["« Il a dit : “Je pars.” » → Il a dit…",["qu'il partait.","qu'il part.","qu'il partira."],0,"Verbe introducteur au passé : présent → imparfait."],
+["« Elle a dit : “Je viendrai.” » →",["Elle a dit qu'elle viendrait.","Elle a dit qu'elle viendra.","Elle a dit qu'elle venait."],0,"Futur → conditionnel présent (futur dans le passé)."],
+["« Il a demandé : “Viens-tu ?” » →",["Il a demandé si je venais.","Il a demandé que je viens.","Il a demandé si je viens ?"],0,"Question totale → « si » ; plus de point d'interrogation."],
+["« Il a dit : “J'ai fini.” » →",["Il a dit qu'il avait fini.","Il a dit qu'il a fini.","Il a dit qu'il finissait."],0,"Passé composé → plus-que-parfait."],
+["« Elle a dit : “Je partirai demain.” » →",["Elle a dit qu'elle partirait le lendemain.","Elle a dit qu'elle partira demain.","Elle a dit qu'elle partait demain."],0,"Futur → conditionnel ; « demain » → « le lendemain »."]]},
+pass:{tag:"4e",items:[
+["Voix passive de « Le peuple acclame le roi. »",["Le roi est acclamé par le peuple.","Le roi a acclamé le peuple.","Le peuple est acclamé par le roi."],0,"Le COD devient sujet ; le temps est conservé."],
+["« La lettre fut écrite par Rousseau. » Temps du verbe passif ?",["passé simple","passé composé","imparfait"],0,"L'auxiliaire « fut » est au passé simple."],
+["Voix active de « Les remparts ont été détruits par l'ennemi. »",["L'ennemi a détruit les remparts.","L'ennemi détruit les remparts.","L'ennemi détruisit les remparts."],0,"Passif au passé composé → actif au passé composé."],
+["Laquelle est à la voix passive ?",["La ville est assiégée.","La ville est belle.","Il est parti."],0,"On peut ajouter « par les ennemis » ; « parti » est un passé composé."],
+["Voix passive de « On a puni le coupable. »",["Le coupable a été puni.","Le coupable est puni par on.","Le coupable avait puni."],0,"« On » disparaît : pas de complément d'agent."],
+["« Le roi sera trahi. » Temps ?",["futur","présent","conditionnel"],0,"L'auxiliaire « sera » est au futur."]]},
+pp:{tag:"4e",items:[
+["« Les lettres qu'il a ___ (écrire). »",["écrites","écrit","écrits"],0,"COD « que » (= les lettres) placé avant → accord."],
+["« Elles ont ___ (manger) des pommes. »",["mangé","mangées","mangés"],0,"Avec avoir, COD placé après → pas d'accord."],
+["« Elles sont ___ (partir) tôt. »",["parties","parti","partis"],0,"Avec être → accord avec le sujet."],
+["« Elle s'est ___ (laver) les mains. »",["lavé","lavée","lavées"],0,"COD « les mains » placé après → pas d'accord."],
+["« Elles se sont ___ (regarder) longtemps. »",["regardées","regardé","regardés"],0,"Elles ont regardé qui ? « se » (= elles), placé avant → accord."],
+["« Les efforts que tu as ___ (faire) ont payé. »",["faits","fait","faites"],0,"COD « que » (= les efforts) placé avant."],
+["« La décision qu'elle a ___ (prendre) »",["prise","pris","prises"],0,"COD « qu' » = la décision, féminin singulier."]]},
+form:{tag:"6e-3e",items:[
+["« Impossible » est formé de…",["préfixe im- + radical « possible »","radical + suffixe -ible","deux radicaux"],0,"im- (négation) + possible."],
+["« Autobiographie » : que signifie « auto- » ?",["soi-même","vie","écrire"],0,"auto (soi) + bio (vie) + graphie (écrire)."],
+["« Déraisonnable » est formé de…",["préfixe + radical + suffixe","radical + suffixe","préfixe + radical"],0,"dé- + raison + -able."],
+["Quel mot appartient à la famille de « terre » ?",["atterrir","terreur","terrible"],0,"« terreur » et « terrible » viennent d'un mot latin qui signifie « effrayer »."],
+["Le suffixe « -ment » ajouté à un adjectif forme…",["un adverbe","un nom","un verbe"],0,"lent → lentement."],
+["« Chronologie » : « chrono- » signifie…",["le temps","l'ordre","la lumière"],0,"Du grec khronos, le temps."]]},
+reecr:{tag:"brevet",items:[
+["Réécris avec « Elles » : « Il prit son sac et partit. »",["Elles prirent leur sac et partirent.","Elles prit leur sac et partit.","Elles prirent son sac et partirent."],0,"Verbes au pluriel, possessif « leur »."],
+["Réécris au passé, langue soutenue : « Bien qu'il soit las, il avance. »",["Bien qu'il fût las, il avançait.","Bien qu'il fut las, il avançait.","Bien qu'il était las, il avançait."],0,"Imparfait du subjonctif, avec accent, après « bien que »."],
+["Réécris avec « Nous » : « Je suis sorti et j'ai vu la mer. »",["Nous sommes sortis et nous avons vu la mer.","Nous sommes sorti et nous avons vus la mer.","Nous somme sortis et nous avont vu la mer."],0,"Accord avec être ; pas d'accord avec avoir (COD après)."],
+["Réécris au féminin pluriel : « Il s'est levé, ému. »",["Elles se sont levées, émues.","Elles s'est levées, émues.","Elles se sont levé, ému."],0,"Accord du participe et de l'adjectif."],
+["Réécris au passé simple avec « Ils » : « Il vient, voit et vainc. »",["Ils vinrent, virent et vainquirent.","Ils vinrent, voyèrent et vainquirent.","Ils venirent, virent et vainquèrent."],0,"vinrent, virent, vainquirent."]]}
+};
+/* connecteurs : chaque soir */
+const CONN=[
+["Relation exprimée : « Il pleut ; pourtant, je sors. »",["concession","cause","conséquence"],0,"La pluie n'empêche pas de sortir : concession."],
+["Relation : « Il n'est pas venu, car il était malade. »",["cause","conséquence","but"],0,"« car » introduit la cause."],
+["Relation : « Il a menti, donc on ne le croit plus. »",["conséquence","cause","opposition"],0,"« donc » introduit la conséquence."],
+["Relation : « Je te le dis afin que tu le saches. »",["but","cause","condition"],0,"« afin que » + subjonctif : but."],
+["Relation : « Tu réussiras à condition de travailler. »",["condition","but","concession"],0,"« à condition de » : condition."],
+["Relation : « Le père est sévère, tandis que la mère est douce. »",["opposition","concession","cause"],0,"Deux faits mis face à face."],
+["Relation : « De plus, la ville est polluée. »",["addition","conséquence","cause"],0,"« de plus » ajoute un argument."],
+["Trois relais : laquelle est correcte ?",["Bien qu'il pleuve, je sors.","Bien qu'il pleut, je sors.","Malgré qu'il pleuve, je sors."],0,"« bien que » + subjonctif ; « malgré que » est à éviter."],
+["Trois relais : laquelle est correcte ?",["Malgré sa peur, il avança.","Malgré qu'il avait peur, il avança.","Malgré avoir peur, il avança."],0,"« malgré » + nom."],
+["Trois relais : laquelle est correcte ?",["Comme il était malade, il resta.","Car il était malade, il resta.","À cause qu'il était malade, il resta."],0,"« car » ne se place pas en tête ; « à cause que » est incorrect."],
+["Trois relais : laquelle est correcte ?",["Il travaille pour réussir.","Il travaille pour qu'il réussisse.","Il travaille pour qu'il réussit."],0,"Même sujet → « pour » + infinitif."],
+["Relie (Il est riche / il n'est pas heureux) :",["Bien qu'il soit riche, il n'est pas heureux.","Parce qu'il est riche, il n'est pas heureux.","Il est riche, donc il n'est pas heureux."],0,"Concession : la richesse n'empêche pas le malheur."],
+["Relie (Il a neigé / les routes sont fermées) :",["Il a tellement neigé que les routes sont fermées.","Bien qu'il ait neigé, les routes sont fermées.","Il a neigé pour que les routes soient fermées."],0,"Conséquence : « tellement… que »."],
+["Choisis : « ___ il soit tard, il continue à lire. »",["Bien qu'","Parce qu'","Puisqu'"],0,"Concession + subjonctif « soit »."],
+["Choisis : « Il est parti ___ l'aube se lève. »",["avant que","après que","parce que"],0,"« soit » ici… non : « se lève » au subjonctif après « avant que »."],
+{b:["Bien qu'","il","soit","roi,","Créon","doute."],x:"Concession : « bien que » + subjonctif."},
+{b:["Le","peuple","se","révolta","parce que","le","roi","était","injuste."],x:"Cause : « parce que » + indicatif."},
+{b:["Certes,","la","science","progresse,","mais","elle","inquiète."],x:"Concession puis objection : « certes… mais »."},
+{b:["Il","parle","fort","afin que","tous","l'entendent."],x:"But : « afin que » + subjonctif."},
+{b:["Si","j'avais","su,","je","serais","venu."],x:"Irréel du passé : si + plus-que-parfait, conditionnel passé."}];
+CONN.splice(14,1,["Choisis : « Il est parti avant que l'aube ___. »",["se lève","se lève-t-elle","s'est levée"],0,"« avant que » + subjonctif : « se lève »."]);
+/* « ma phrase » */
+const PR=[
+{k:"de plus / en outre",rx:/de plus|en outre|par ailleurs/i,p:"Écris deux phrases sur toi-même reliées par « de plus » ou « en outre ».",m:"J'aime la lecture ; de plus, j'écris parfois des poèmes."},
+{k:"d'abord, ensuite, enfin",rx:/d'abord|ensuite|enfin/i,p:"Raconte un souvenir en trois temps avec « d'abord », « ensuite », « enfin ».",m:"D'abord, j'ai eu peur ; ensuite, j'ai observé la salle ; enfin, je me suis lancé."},
+{k:"mais / cependant",rx:/\bmais\b|cependant|\bor\b/i,p:"Écris une phrase qui oppose deux traits de ton caractère avec « mais » ou « cependant ».",m:"Je suis timide ; cependant, j'aime prendre la parole quand le sujet me passionne."},
+{k:"bien que",rx:/bien qu|quoiqu/i,p:"Écris une phrase avec « bien que » + subjonctif présent.",m:"Bien que le texte soit difficile, je le comprends mieux à la deuxième lecture."},
+{k:"dont",rx:/\bdont\b/i,p:"Écris une phrase avec une subordonnée relative introduite par « dont ».",m:"Le livre dont je te parle raconte l'enfance de l'auteur."},
+{k:"conséquence",rx:/c'est pourquoi|si bien qu|de sorte qu|par conséquent|\bdonc\b|tellement|si .+ que/i,p:"Écris une phrase qui exprime une conséquence, sur un travers de la société.",m:"La publicité est partout, si bien que nous achetons sans réfléchir."},
+{k:"pour que / afin que",rx:/pour qu|afin qu/i,p:"Écris une phrase de but avec « pour que » ou « afin que » + subjonctif.",m:"L'auteur dénonce l'injustice pour que les lecteurs ouvrent les yeux."},
+{k:"si (irréel du passé)",rx:/\bsi\b|\bs'il|\bs'ils/i,p:"Écris une hypothèse à l'irréel du passé : « Si » + plus-que-parfait, puis conditionnel passé.",m:"Si Antigone avait obéi, elle aurait eu la vie sauve."},
+{k:"passé simple",rx:/soudain|aussitôt|alors/i,p:"Écris deux phrases de récit au passé simple avec « soudain » ou « aussitôt ».",m:"Le vent se leva. Soudain, la porte s'ouvrit et un inconnu entra."},
+{k:"imparfait du subjonctif",rx:/qu['’]\s?(il|elle|on)\s+(\S+\s+)?\S*[âîû]t\b/i,p:"Écris une phrase au passé, en langue soutenue, avec « bien que » ou « pour que » + imparfait du subjonctif (3e personne).",m:"Bien qu'il fût épuisé, le soldat continua sa marche."},
+{k:"discours indirect",rx:/(dit|demanda|affirma|répondit|déclara|expliqua|a dit|a demandé|a affirmé)\s+(qu|si|s')/i,p:"Rapporte au discours indirect une phrase prononcée par un personnage, avec un verbe introducteur au passé.",m:"Créon affirma qu'il ne céderait jamais."},
+{k:"certes… mais",rx:/certes.*mais/i,p:"Écris un argument avec « certes… mais » sur le progrès scientifique.",m:"Certes, la science soigne des maladies, mais elle peut aussi créer des armes."}];
+/* semaines */
+const W=[
+{t:"Les classes de mots",g:["classes"],r:"fonctions",p:0},{t:"Les fonctions",g:["fonctions"],r:"classes",p:1},{t:"Phrase simple, phrase complexe",g:["props"],r:"fonctions",p:2},{t:"Bilan des fondations",g:["classes","fonctions","props"],r:"ps",p:3},
+{t:"Relatives et complétives",g:["sub"],r:"props",p:4},{t:"Cause et conséquence",g:["cc"],r:"sub",p:5},{t:"But et opposition",g:["bo"],r:"subjf",p:6},{t:"La concession",g:["conc"],r:"props",p:3},{t:"Condition et hypothèse",g:["cond"],r:"ps",p:7},
+{t:"Subjonctif : formation",g:["subjf"],r:"cond",p:3},{t:"Subjonctif : emplois",g:["subje"],r:"subjf",p:6},{t:"Le passé simple",g:["ps"],r:"fonctions",p:8},{t:"Imparfait du subjonctif (3e personne)",g:["isj3"],r:"ps",p:9},{t:"Imparfait du subjonctif : toutes les personnes",g:["isj"],r:"ps",p:9},{t:"Concordance des temps",g:["ct","isj3"],r:"subje",p:9},
+{t:"Discours direct et indirect",g:["dr"],r:"sub",p:10},{t:"Voix active et passive",g:["pass"],r:"fonctions",p:11},{t:"Accord du participe passé",g:["pp"],r:"pass",p:3},{t:"Formation des mots",g:["form"],r:"classes",p:4},{t:"La réécriture",g:["reecr"],r:"pp",p:9},
+{t:"Sujet de référence n° 1",g:["fonctions","sub","reecr"],r:"pp",p:11},{t:"Sujet de référence n° 2",g:["sub","form","reecr"],r:"ps",p:5},{t:"Carnet d'erreurs",g:["cc","conc","isj3","pp"],r:"subje",p:9},{t:"Brevet blanc",g:["fonctions","sub","cc","conc","isj3","ct","pp","reecr"],r:"dr",p:7}];
+const STAGES=[{n:"Les fondations",a:1,b:4},{n:"Relier ses idées",a:5,b:9},{n:"Le subjonctif",a:10,b:15},{n:"Écrire juste",a:16,b:20},{n:"Brevet",a:21,b:24}];
+const DICT=[
+"Bien qu'il fût tard, le jeune homme ne voulait pas rentrer. Les rues qu'il avait parcourues lui semblaient étrangères, et la pluie, qui tombait depuis le matin, effaçait ses souvenirs.",
+"Les lettres que ma grand-mère m'avait écrites sont restées dans un tiroir. Je les ai relues hier soir ; elles m'ont rappelé les étés passés chez elle, au bord de la mer.",
+"Certes, la science a permis de grands progrès ; pourtant, beaucoup de savants se sont inquiétés de ses dangers. Il faudrait que chacun réfléchisse avant d'agir.",
+"Le roi ordonna que les portes fussent fermées. Les soldats obéirent aussitôt, si bien que la ville entière se trouva prisonnière de ses propres murailles.",
+"Quoiqu'elle eût peur, Antigone refusa de se taire. Elle savait que sa décision la condamnerait, mais elle préférait mourir plutôt que de trahir son frère.",
+"Lorsque nous sommes arrivés au sommet, le soleil se levait. Nous nous sommes assis sur les rochers et nous avons regardé, émerveillés, la vallée qui s'éveillait."];
+const CAT={classes:"Classes de mots",fonctions:"Fonctions",props:"Propositions",sub:"Subordonnées relatives et complétives",cc:"Cause et conséquence",bo:"But et opposition",conc:"Concession",cond:"Condition et hypothèse",subjf:"Subjonctif : formation",subje:"Subjonctif : emplois",ps:"Passé simple",isj3:"Imparfait du subjonctif (3e pers.)",isj:"Imparfait du subjonctif",ct:"Concordance des temps",dr:"Discours rapporté",pass:"Voix passive",pp:"Accord du participe passé",form:"Formation des mots",reecr:"Réécriture",conn:"Connecteurs logiques",phr:"Ma phrase (écriture)",dict:"Dictée"};
+const QCAT={};
+const BRAVO=["Bravo !","Exact !","Bien vu !","Parfait !","Solide !","Très juste !"];
+const JOURS=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+const STAR=on=>`<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="${on?'#ffc23a':'var(--chip)'}" stroke="${on?'#d48a00':'var(--line)'}" stroke-width="1.2"/></svg>`;
+const KEY="routebrevet-v1";
+const DEF={v:1,name:"",week:1,voice:"",slow:false,car:"gt",st:{},miss:{},dmiss:{},missions:{},days:[],mb:[],err:[],phr:[],dict:[],updated:0};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const tk=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const $=s=>document.querySelector(s);
+const view=$("#view");
+let S=load(),ACT={},M=null,timer=null,dbRef=null,writing=Promise.resolve(),tts=null,sample=null,place="map",frVoices=[];
+function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||"null");if(r&&r.v===1)return Object.assign(clone(DEF),r)}catch(e){}return clone(DEF)}
+let dbT=null,localOK=true;
+function save(){S.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S));localOK=true}catch(e){localOK=false}if(dbRef){clearTimeout(dbT);dbT=setTimeout(pushCloud,1200)}}
+function pushCloud(){clearTimeout(dbT);dbT=null;if(!dbRef)return writing;const snap=clone(S);writing=writing.then(()=>dbRef.set(snap)).catch(()=>{});return writing}
+function savedGame(){save();pushCloud();let n=document.getElementById("savetoast");if(!n){n=document.createElement("div");n.id="savetoast";n.setAttribute("role","status");n.style.cssText="position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;background:#12a150;color:#fff;font-weight:700;border-radius:999px;padding:9px 18px;box-shadow:0 6px 22px rgba(0,0,0,.35);font-size:15px;max-width:92vw;text-align:center";document.body.appendChild(n)}
+ if(!localOK&&!dbRef){n.style.background="#d63b3b";n.textContent="Attention : ce navigateur n'enregistre pas la partie. Ouvre le jeu dans Safari ou Chrome."}else{n.style.background="#12a150";n.textContent="✓ Partie enregistrée"+(dbRef?" (sur cet appareil et en ligne)":" sur cet appareil")}
+ n.hidden=false;clearTimeout(n._t);n._t=setTimeout(()=>{n.hidden=true},3500)}
+window.addEventListener("pagehide",()=>{if(dbT)pushCloud()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&dbT)pushCloud()});
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{})}catch(e){}
+const BKP="BC1:";
+const mkCode=()=>BKP+btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+function readCode(t){t=String(t||"").replace(/\s+/g,"");if(!t.startsWith(BKP))return null;try{const d=JSON.parse(decodeURIComponent(escape(atob(t.slice(BKP.length)))));return d&&d.v===1?d:null}catch(e){return null}}
+const fmtD=t=>t?new Date(t).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"jamais";
+const nm=()=>S.name.trim()||"pilote";
+const norm=s=>String(s).trim().toLowerCase().replace(/[’`]/g,"'").replace(/\s+/g," ");
+/* voix française */
+function loadVoices(){try{const all=speechSynthesis.getVoices(),fr=all.filter(v=>/^fr[-_]FR/i.test(v.lang)),o=all.filter(v=>/^fr/i.test(v.lang)&&!/^fr[-_]FR/i.test(v.lang));frVoices=fr.concat(o)}catch(e){}}
+if("speechSynthesis" in window){loadVoices();try{speechSynthesis.addEventListener("voiceschanged",loadVoices)}catch(e){}}
+function bestVoice(){if(S.voice==="claude")return null;if(S.voice){const v=frVoices.find(v=>v.name===S.voice);if(v)return v}const fr=frVoices.filter(v=>/^fr[-_]FR/i.test(v.lang));for(const r of[/google/i,/natural|online|neural/i,/denise|henri|vivienne|remy|eloise/i,/audrey|aur[ée]lie|thomas/i,/hortense|julie|paul/i]){const v=fr.find(v=>r.test(v.name));if(v)return v}return fr[0]||(tts?null:frVoices[0])||null}
+const NOSOUND="Pas de son ? Monte le volume et vérifie que le téléphone n'est pas en mode silencieux (sur iPhone : le petit bouton sur le côté). Sinon, un adulte peut lire le texte.";
+function sndNote(m){let n=document.getElementById("sndnote");if(!n){n=document.createElement("div");n.id="sndnote";n.className="sndnote";n.setAttribute("role","status");document.body.appendChild(n)}n.textContent=m||"";n.hidden=!m;clearTimeout(n._t);if(m)n._t=setTimeout(()=>{n.hidden=true},9000)}
+let sayId=0;
+function say(t,rate){rate=rate||(S.slow?0.8:0.95);const parts=(Array.isArray(t)?t:[t]).filter(Boolean),id=++sayId,ss=("speechSynthesis" in window)?window.speechSynthesis:null,v=bestVoice();
+ const viaTts=()=>{if(!tts)return Promise.reject(new Error("no tts"));return parts.reduce((p,x)=>p.then(()=>id===sayId&&tts.speak(x,{language:"fr-FR",rate})),Promise.resolve())};
+ const fail=()=>{if(id===sayId)sndNote(NOSOUND)};
+ const viaNative=(onFail)=>{let started=false;try{if(ss.speaking||ss.pending)ss.cancel();if(ss.paused)ss.resume();
+   parts.forEach((x,i)=>{const u=new SpeechSynthesisUtterance(x);u.lang=(v&&v.lang)||"fr-FR";if(v)u.voice=v;u.rate=rate;if(i===0){u.onstart=()=>{started=true;sndNote("")};u.onerror=e=>{if(!started&&e&&e.error!=="interrupted"&&e.error!=="canceled")onFail()}}ss.speak(u)});
+   setTimeout(()=>{if(!started&&id===sayId){try{ss.cancel()}catch(e){}onFail()}},2500)}catch(e){onFail()}};
+ let done=false;const once=f=>()=>{if(done)return;done=true;f()};
+ if(ss&&(v||!tts))viaNative(once(()=>viaTts().then(()=>sndNote("")).catch(fail)));
+ else if(tts)viaTts().then(()=>sndNote("")).catch(()=>{if(ss)viaNative(once(fail));else fail()});
+ else fail()}
+const canSpeak=()=>frVoices.length>0||!!tts||("speechSynthesis" in window);
+let ac=null;function beep(ok){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;o.type="triangle";o.frequency.setValueAtTime(ok?620:190,t);if(ok)o.frequency.setValueAtTime(930,t+.1);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.15,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.3);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.32)}catch(e){}}
+/* progression */
+function streak(){const set=new Set(S.days);let d=new Date();if(!set.has(tk(d)))d.setDate(d.getDate()-1);let n=0;while(set.has(tk(d))){n++;d.setDate(d.getDate()-1)}return n}
+const total=()=>Object.values(S.missions).reduce((a,b)=>a+b,0);
+function addErr(it){const q=it.q||it[0];if(S.err.some(e=>e.q===q))return;S.err.push({q,it});if(S.err.length>60)S.err.shift()}
+function delErr(it){const q=it.q||it[0];S.err=S.err.filter(e=>e.q!==q)}
+const bankItems=k=>B[k].items;
+/* clics */
+document.addEventListener("click",e=>{const sp=e.target.closest("[data-say]");if(sp){say(sp.dataset.say);return}
+ const o=e.target.closest("[data-o]");if(o&&ACT.o){ACT.o(+o.dataset.o,o);return}
+ const a=e.target.closest("[data-a]");if(a){const f=ACT[a.dataset.a]||G[a.dataset.a];if(f)f(a)}});
+const G={home:()=>{stopTimer();showMap()},parent:()=>showParent(),mission:()=>startMission(S.week,false),brevet:()=>startMission(S.week,true),dictee:()=>showDictee(),forge:()=>showForge(),garage:()=>showGarage(),fautes:()=>{place="fautes";ACT={};view.innerHTML=topBar()+`<main class="wrap"><div class="panel"><div class="banner"><h2>Mes fautes</h2></div>${linaSay("hmm","Voilà ton dossier. Les fautes qui reviennent souvent, on va les traquer une par une.")}${errorReport()}<div class="row"><button class="go" data-a="home">Retour au plan</button></div></div></main>`},replay:a=>startMission(+a.dataset.w,false)};
+Object.keys(B).forEach(k=>B[k].items.forEach(it=>QCAT[it.q||it[0]]=k));CONN.forEach(it=>{const q=it.q||it[0]||it.b.join(" ");if(!QCAT[q])QCAT[q]=it.b?"conn":"conn"});
+const qOf=it=>it.q||(it.b?it.b.join(" "):it[0]);
+const ansOf=it=>it.t?it.ans[0]:it.b?it.b.join(" ").replace("' ","'"):it[1][it[2]];
+const xOf=it=>it.x||(Array.isArray(it)?it[3]:"")||"";
+function track(cat,key,ans,x,ok){const st=S.st[cat]||(S.st[cat]={ok:0,ko:0});st[ok?"ok":"ko"]++;if(!ok){const m=S.miss[key]||(S.miss[key]={n:0,a:ans,x:x,c:cat});m.n++;m.d=tk(new Date())};save()}
+function weakest(){const r=Object.entries(S.st).filter(([k,v])=>B[k]&&v.ko>0).sort((a,b)=>(b[1].ko/(b[1].ok+b[1].ko))-(a[1].ko/(a[1].ok+a[1].ko))||b[1].ko-a[1].ko);return r.length?r[0][0]:null}
+function errorReport(){const rows=Object.entries(S.st).map(([k,v])=>({k,n:CAT[k]||k,ok:v.ok,ko:v.ko,r:Math.round(100*v.ok/Math.max(1,v.ok+v.ko))})).filter(r=>r.ko>0).sort((a,b)=>b.ko-a.ko);
+ const tot=rows.reduce((a,r)=>a+r.ko,0),mx=Math.max(1,...rows.map(r=>r.ko));
+ const top=Object.entries(S.miss).sort((a,b)=>b[1].n-a[1].n).slice(0,8);const dw=Object.entries(S.dmiss).sort((a,b)=>b[1]-a[1]).slice(0,12);
+ return `<h3 style="margin-top:22px">Compteur de fautes : ${tot}</h3>${rows.length?`<p class="muted">Par notion, de la plus fréquente à la plus rare, avec le taux de réussite.</p><div class="bars">${rows.map(r=>`<div class="bar"><span>${esc(r.n)}</span><span><b style="width:${Math.max(4,r.ko/mx*100)}%;background:var(--bad)"></b></span><span>${r.ko}</span></div><p class="muted" style="margin:-4px 0 4px">${r.r} % de réussite (${r.ok} justes, ${r.ko} fautes)</p>`).join("")}</div>`:'<p class="muted">Aucune faute enregistrée pour l\'instant.</p>'}
+ ${top.length?`<h3 style="margin-top:18px">Les fautes qui reviennent</h3>${top.map(([q,m])=>`<div class="err"><b>${m.n} fois</b> · <span class="muted">${esc(CAT[m.c]||m.c)}</span><br>${esc(q)}<br><span style="color:var(--good)">Réponse : ${esc(m.a)}</span>${m.x?`<br><span class="muted">${esc(m.x)}</span>`:""}</div>`).join("")}`:""}
+ ${dw.length?`<h3 style="margin-top:18px">Mots ratés en dictée</h3><p>${dw.map(([w,n])=>`<span class="pill" style="display:inline-block;margin:3px">${esc(w)} · ${n}</span>`).join("")}</p>`:""}`}
+/* ---------- voitures, gadgets ---------- */
+const OB=(sz)=>`<svg viewBox="0 0 60 60" width="${sz||64}" height="${sz||64}" aria-hidden="true"><rect x="3" y="9" width="54" height="40" rx="9" fill="#0d0718" stroke="#19d3c5" stroke-width="2.5"/><rect x="9" y="15" width="42" height="28" rx="5" fill="#140a24"/><path d="M12 31 H19 L22 23 L26 38 L30 19 L34 35 L37 28 H48" fill="none" stroke="#19d3c5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="47" cy="19" r="2.2" fill="#ff2e88"/><rect x="22" y="49" width="16" height="5" rx="2" fill="#19d3c5" opacity=".6"/></svg>`;
+const linaSay=(e,t,sz)=>`<div class="msg">${OB(sz)}<p class="bub"><b>NOVA · ordinateur de bord :</b> ${t}</p></div>`;
+const LL={ok:["Joli tir !","Propre, rien à redire.","Ça, c'est du niveau brevet.","Réponse parfaite.","Une de moins !"],
+ko:["Raté, mais lis l'explication : la prochaine fois, elle ne t'échappe pas.","Pas grave, je la note dans ton carnet.","Elle est coriace, celle-là. Elle reviendra au prochain rappel."],
+ride:["Prochaine épreuve au bout de l'avenue.","Raccourci par le front de mer.","Musique à fond, direction l'épreuve suivante.","GPS calé. Trente secondes et on y est."],
+win:["Mission bouclée ! Tes XP t'attendent au garage.","Beau travail ! On remet ça demain après les devoirs ?","Ton score est à battre. À demain !"]};
+const GUNS=[{id:"lance",n:"Lance-connecteurs",xp:0,ch:2,e:"Élimine une mauvaise réponse",d:"Fait disparaître une mauvaise réponse dans une question à choix.",w:"Questions à choix (quand il reste au moins 2 mauvaises réponses)"},
+{id:"canon",n:"Canon à subjonctif",xp:500,ch:1,e:"Seconde chance",d:"À activer avant de répondre : si tu te trompes, tu peux réessayer une fois. L'erreur reste notée dans ton carnet pour être retravaillée.",w:"Toutes les questions"},
+{id:"pulve",n:"Pulvérisateur d'accords",xp:1500,ch:2,e:"Montre le début de la réponse",d:"Affiche les 2 premières lettres du mot à écrire, ou place les 2 premiers morceaux de la phrase.",w:"Questions à écrire et phrases à remettre dans l'ordre"},
+{id:"laser",n:"Laser de concordance",xp:3000,ch:1,e:"+1 minute au chrono",d:"Ajoute une minute au chrono de la mission.",w:"Toutes les questions"}];
+const CARS=[{id:"gt",n:"Neon GT",c:"#ff2e88",c2:"#19d3c5",c3:"#ffd23f",xp:0},{id:"road",n:"Sunset Roadster",c:"#ff8a3d",c2:"#ffd23f",c3:"#ff2e88",xp:800},{id:"vortex",n:"Vortex 900",c:"#17a58a",c2:"#4dff7a",c3:"#ff6a2b",xp:2000},{id:"mirage",n:"Mirage Cabriolet",c:"#c9a227",c2:"#ff2e88",c3:"#19d3c5",xp:4000}];
+function shade(h,f){const n=parseInt(h.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;r=Math.round(r*f);g=Math.round(g*f);b=Math.round(b*f);return "#"+[r,g,b].map(v=>Math.min(255,v).toString(16).padStart(2,"0")).join("")}
+function CAR(id,w,h){const k=CARS.find(x=>x.id===id)||CARS[0],c=k.c,c2=k.c2,c3=k.c3,open=id==="road"||id==="mirage",f="cg"+id;
+ const body="M14 72 L20 60 Q34 52 64 48 L98 34 Q124 24 156 26 L192 36 Q214 42 226 54 L230 66 Q228 74 218 76 L30 78 Q16 78 14 72Z";
+ const wheel=(x,y)=>`<circle cx="${x}" cy="${y}" r="17" fill="#0b0b10"/><circle cx="${x}" cy="${y}" r="10.5" fill="#1b1b24" stroke="#c9a46a" stroke-width="2"/>${[0,72,144,216,288].map(a=>`<line x1="${x}" y1="${y}" x2="${(x+9*Math.cos(a*Math.PI/180)).toFixed(1)}" y2="${(y+9*Math.sin(a*Math.PI/180)).toFixed(1)}" stroke="#c9a46a" stroke-width="2.2"/>`).join("")}<circle cx="${x}" cy="${y}" r="2.5" fill="#c9a46a"/><path d="M${x-24} ${y-2} A24 24 0 0 1 ${x+24} ${y-2}" fill="none" stroke="${c3}" stroke-width="2.6" filter="url(#${f})"/>`;
+ const glass=open?`<path d="M100 44 L112 34" stroke="${c2}" stroke-width="2.5" filter="url(#${f})"/><path d="M120 44 Q121 34 129 33 Q136 34 136 44Z" fill="#140a24"/><path d="M144 43 Q145 33 153 32 Q160 33 160 43Z" fill="#140a24"/><path d="M96 48 L190 40" stroke="${c2}" stroke-width="2.5" filter="url(#${f})"/>`:`<path d="M96 46 L114 32 Q134 26 158 28 L176 40 Q150 42 96 48Z" fill="#071318"/><path d="M118 34 L108 44 M140 30 L128 42" stroke="#9fe" stroke-width="1.6" opacity=".5"/><path d="M96 46 L114 32 Q134 26 158 28 L176 40" fill="none" stroke="${c3}" stroke-width="2.4" filter="url(#${f})"/>`;
+ return `<svg viewBox="0 0 240 100" ${w?`width="${w}" height="${h}"`:""} aria-hidden="true"><defs><filter id="${f}" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="${f}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c,1.25)}"/><stop offset=".55" stop-color="${c}"/><stop offset="1" stop-color="${shade(c,.45)}"/></linearGradient></defs>
+ <ellipse cx="122" cy="90" rx="104" ry="6" fill="${c2}" opacity=".35" filter="url(#${f})"/>
+ <path d="${body}" fill="url(#${f}b)"/><path d="M28 64 Q60 56 98 54 L200 50 Q218 52 226 60 L28 70Z" fill="${shade(c,1.35)}" opacity=".55"/><path d="M118 56 L170 50 L178 64 L130 68Z" fill="${shade(c,.4)}"/><path d="M24 74 L218 70 L218 76 L30 78Z" fill="${shade(c,.35)}"/>${glass}
+ <path d="${body}" fill="none" stroke="${c2}" stroke-width="2.6" stroke-linejoin="round" filter="url(#${f})"/><path d="M26 80 L214 78" stroke="${c3}" stroke-width="2.6" filter="url(#${f})"/><path d="M206 46 L224 54" stroke="#fff" stroke-width="3" stroke-linecap="round" filter="url(#${f})"/><path d="M18 64 L26 62" stroke="#ff3b3b" stroke-width="3" stroke-linecap="round" filter="url(#${f})"/>
+ ${wheel(64,76)}${wheel(186,74)}</svg>`}
+const FAUTE=`<svg viewBox="0 0 100 100"><path d="M18 82 Q8 40 50 14 Q92 40 82 82 Q72 72 64 84 Q56 72 50 84 Q44 72 36 84 Q28 72 18 82Z" fill="#7b3fe4" stroke="#140a24" stroke-width="3"/><circle cx="50" cy="44" r="14" fill="#fff"/><circle cx="53" cy="46" r="6" fill="#140a24"/><path d="M36 64 L42 70 L48 64 L54 70 L60 64 L66 70" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><text x="50" y="99" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="13" fill="#ff4d4d">FAUTE</text></svg>`;
+const curCar=()=>{const ok=CARS.filter(c=>c.xp<=xp());return ok.find(c=>c.id===S.car)||ok[ok.length-1]};
+const curGun=()=>{const ok=GUNS.filter(g=>g.xp<=xp());return ok[ok.length-1]};
+let Q=null;
+const gadOn=()=>place==="mission"&&M&&M.gad&&!M.noGad;
+function gApplies(id){if(!Q)return false;switch(id){case"lance":return Q.kind==="qcm"&&Q.left()>1;case"canon":return !Q.shield&&!Q.retry;case"pulve":return !Q.hinted&&((Q.kind==="typing"&&Q.ans.length>3)||(Q.kind==="build"&&Q.n>2));default:return true}}
+function gbar(){if(place==="mission"&&M&&M.noGad)return '<p class="gnote muted" id="gb">Pas de gadgets pendant le mini-brevet, comme le jour du brevet.</p>';if(!gadOn())return "";
+ const x=xp(),open=GUNS.filter(g=>g.xp<=x),nx=GUNS.find(g=>g.xp>x);
+ return `<div class="gbar" id="gb"><p class="gt">Tes gadgets · touche-en un pour l'utiliser</p><div class="gads">${open.map(g=>{const c=M.gad[g.id],ap=gApplies(g.id),on=Q&&!Q.done&&c>0&&ap;
+  const st=c<=0?"Épuisé pour ce soir":Q&&Q.done?`${c} restant${c>1?"s":""}`:!ap?(g.id==="canon"&&Q&&(Q.shield||Q.retry)?"Activé":"Pas utilisable ici"):`${c} restant${c>1?"s":""} ce soir`;
+  return `<button class="gad" data-a="gd" data-g="${g.id}" ${on?"":"disabled"}><b>${esc(g.n)}</b><span>${esc(g.e)}</span><i>${st}</i></button>`}).join("")}</div>${Q&&Q.msg?`<p class="gnote zap">${Q.msg}</p>`:""}${nx?`<p class="gnote muted">Prochain gadget : ${esc(nx.n)} (${esc(nx.e.toLowerCase())}) à ${nx.xp.toLocaleString("fr-FR")} XP.</p>`:""}</div>`}
+function refreshG(){const b=$("#gb");if(b)b.outerHTML=gbar()}
+function useGad(b){const id=b.dataset.g,g=GUNS.find(x=>x.id===id);if(!gadOn()||!Q||Q.done||!(M.gad[id]>0)||!gApplies(id))return;M.gad[id]--;
+ if(id==="lance"){Q.elim();Q.msg=`${esc(g.n)} : une mauvaise réponse a disparu.`}
+ else if(id==="canon"){Q.shield=true;Q.msg=`${esc(g.n)} : seconde chance activée pour cette question.`}
+ else if(id==="pulve"){Q.msg=`${esc(g.n)} : le début de la réponse est affiché.`;Q.reveal()}
+ else if(id==="laser"){M.end+=60000;tick();Q.msg=`${esc(g.n)} : +1 minute au chrono.`}
+ refreshG()}
+function firstMiss(it){const q=qOf(it);track(QCAT[q]||"conn",q,ansOf(it),xOf(it),false);addErr(it);beep(false)}
+function shieldCatch(it,undo){if(!Q||!Q.shield||Q.retry)return false;Q.retry=true;Q.shield=false;firstMiss(it);Q.msg="";undo();
+ const fb=$("#fb");if(fb)fb.innerHTML=`<div class="fault"><div class="foe laugh">${FAUTE}</div><p class="fbno"><span style="font-family:Anton,Impact,sans-serif;font-size:24px;text-transform:uppercase">Faute.</span> Seconde chance : l'erreur est notée dans ton carnet, réessaie.</p></div>`;refreshG();return true}
+const NSIGN=(x,y,w,h,t,c,fs)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#140a24" stroke="${c}" stroke-width="2.5" filter="url(#sg)"/><text x="${x+w/2}" y="${y+h/2+fs/2.8}" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="${fs}" fill="${c}" filter="url(#sg)">${t}</text>`;
+const PALMN=(x,y,k)=>`<g transform="translate(${x} ${y}) scale(${k})" fill="#0b0614"><path d="M-3 0 Q-6 -60 2 -120 L8 -120 Q2 -60 5 0Z"/><path d="M4 -118 Q-30 -132 -52 -110 Q-26 -122 4 -112Z"/><path d="M4 -118 Q40 -136 60 -112 Q32 -124 4 -112Z"/><path d="M4 -118 Q-14 -150 -40 -150 Q-14 -138 4 -114Z"/><path d="M4 -118 Q24 -152 48 -146 Q24 -136 4 -114Z"/><path d="M4 -118 Q0 -98 -30 -86 Q-6 -102 4 -112Z"/></g>`;
+function streetSVG(){return `<svg viewBox="0 0 600 230" aria-hidden="true"><defs><filter id="sg" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="sb"><feGaussianBlur stdDeviation="5"/></filter><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#160828"/><stop offset="1" stop-color="#3b1763"/></linearGradient><linearGradient id="wet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1230"/><stop offset="1" stop-color="#0c0716"/></linearGradient><pattern id="fence" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0 V10 M0 0 H10" stroke="#5b4a74" stroke-width="1.2"/></pattern></defs>
+<rect width="600" height="230" fill="url(#sky)"/>
+<g fill="#1a0f2c"><rect x="0" y="30" width="150" height="130"/><rect x="150" y="60" width="90" height="100"/><rect x="400" y="40" width="110" height="120"/><rect x="510" y="20" width="90" height="140"/></g>
+<g fill="#ffd23f" opacity=".5">${[[20,50],[60,50],[100,50],[20,80],[100,80],[170,80],[210,80],[420,60],[470,60],[530,40],[570,40],[530,70],[570,100]].map(p=>`<rect x="${p[0]}" y="${p[1]}" width="12" height="9"/>`).join("")}</g>
+${NSIGN(14,96,124,34,"DICTÉE CLUB","#ff2e88",19)}${NSIGN(160,104,74,26,"OPEN","#19d3c5",15)}${NSIGN(412,90,94,30,"ARCADE","#ff2e88",18)}<g transform="translate(522 50)">${NSIGN(0,0,30,100,"","#19d3c5",1)}<text x="15" y="18" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="15" fill="#19d3c5" filter="url(#sg)"><tspan x="15" dy="0">V</tspan><tspan x="15" dy="18">E</tspan><tspan x="15" dy="18">R</tspan><tspan x="15" dy="18">B</tspan><tspan x="15" dy="18">E</tspan></text></g>
+${PALMN(262,162,.95)}${PALMN(352,162,.8)}${PALMN(130,165,.7)}
+<rect x="0" y="160" width="600" height="10" fill="#2a1d3d"/><rect x="560" y="96" width="40" height="70" fill="url(#fence)"/><line x1="560" y1="96" x2="560" y2="166" stroke="#5b4a74" stroke-width="3"/>
+<g><path d="M440 160 Q446 146 470 143 L486 134 Q512 130 530 140 L548 146 Q556 150 556 160Z" fill="#241a33"/><circle cx="458" cy="160" r="7" fill="#0b0614"/><circle cx="536" cy="160" r="7" fill="#0b0614"/><ellipse cx="554" cy="152" rx="4" ry="2" fill="#fff6c9" filter="url(#sg)"/></g>
+<g><path d="M60 160 Q66 148 88 145 L100 138 Q120 134 136 142 L150 147 Q158 151 158 160Z" fill="#1a1426"/><circle cx="78" cy="160" r="7" fill="#0b0614"/><circle cx="140" cy="160" r="7" fill="#0b0614"/></g>
+<rect x="0" y="170" width="600" height="60" fill="url(#wet)"/>
+<g filter="url(#sb)" opacity=".45"><rect x="40" y="176" width="70" height="40" fill="#ff2e88"/><rect x="170" y="176" width="40" height="30" fill="#19d3c5"/><rect x="430" y="176" width="60" height="40" fill="#ff2e88"/><rect x="552" y="176" width="16" height="50" fill="#19d3c5"/></g>
+<path d="M0 200 H600" stroke="#ffd23f" stroke-width="3" stroke-dasharray="26 18" opacity=".8"/>
+<g class="drive"><g transform="translate(0 132)">${CAR(curCar().id,220,92)}</g></g></svg>`}
+function ride(then){const m=M,line=pick(LL.ride);let done=false;
+ stage(`<p class="kicker">En route · ${esc(curCar().n)}</p><div class="road">${streetSVG()}</div>${linaSay("happy",line,64)}<div class="row"><button class="sec" data-a="skip">Passer</button></div>`);
+ const go=()=>{if(done||M!==m||place!=="mission")return;done=true;then()};ACT.skip=go;say(line);setTimeout(go,2600)}
+function showGarage(){place="garage";ACT={};const x=xp();
+ view.innerHTML=topBar()+`<main class="wrap"><div class="panel"><div class="banner"><h2>Garage &amp; arsenal</h2></div>${linaSay("wow",`Tu as ${x.toLocaleString("fr-FR")} XP. Choisis ta voiture, je m'occupe du GPS.`)}
+ <h3 style="margin-top:18px">Les voitures</h3><div class="garage">${CARS.map(c=>{const open=c.xp<=x,sel=open&&curCar().id===c.id;return `<div class="gcard ${sel?'sel':''} ${open?'':'lock'}">${CAR(c.id)}<h3>${esc(c.n)}</h3><p class="muted">${open?(sel?"Au volant ce soir":"Débloquée"):"Se débloque à "+c.xp.toLocaleString("fr-FR")+" XP"}</p>${open&&!sel?`<button class="sec" data-a="pick" data-c="${c.id}">Prendre celle-ci</button>`:""}</div>`}).join("")}</div>
+ <h3 style="margin-top:22px">L'arsenal de gadgets</h3><p class="muted">Pendant une mission, tes gadgets débloqués apparaissent sous chaque question. Ils se rechargent à chaque nouvelle mission. Pas de gadgets pendant le mini-brevet.</p><div class="garage">${GUNS.map(g=>{const open=g.xp<=x;return `<div class="gcard ${open?'':'lock'}"><h3>${esc(g.n)}</h3><p class="zap">${esc(g.e)}</p><p>${esc(g.d)}</p><p class="muted"><b>Quand :</b> ${esc(g.w)}<br><b>Utilisations :</b> ${g.ch} par mission</p><p class="zap">${open?"Débloqué":"Se débloque à "+g.xp.toLocaleString("fr-FR")+" XP"}</p></div>`}).join("")}</div>
+ <p class="muted" style="margin-top:14px">On gagne des XP en jouant : 100 par mission, 10 par point au mini-brevet, 50 par dictée.</p><div class="row"><button class="go" data-a="home">Retour au plan</button></div></div></main>`;
+ ACT.pick=b=>{S.car=b.dataset.c;save();showGarage()}}
+/* ---------- carte : Brevet City ---------- */
+const DIST=["Quartier des Fondations","Les Docks des connecteurs","Boulevard du Subjonctif","Downtown Écriture","Brevet Tower"];
+const WAY=[[70,548],[690,530],[110,432],[690,338],[110,246],[650,150],[700,78]];
+const NODES=(()=>{const seg=[];let L=0;for(let i=1;i<WAY.length;i++){const a=WAY[i-1],b=WAY[i],d=Math.hypot(b[0]-a[0],b[1]-a[1]);seg.push([a,b,d]);L+=d}return Array.from({length:24},(_,k)=>{let t=k/23*L;for(const [a,b,d] of seg){if(t<=d+1e-6){const r=t/d;return [Math.round(a[0]+(b[0]-a[0])*r),Math.round(a[1]+(b[1]-a[1])*r)]}t-=d}return WAY[WAY.length-1]})})();
+function rng(seed){return()=>{seed=seed*16807%2147483647;return seed/2147483647}}
+function mapSVG(){const cur=S.week,R=rng(11);let s=`<svg viewBox="0 0 1000 600" role="img" aria-label="Plan de Brevet City : mission ${cur} sur 24">`;
+ s+=`<rect width="1000" height="600" fill="#120a20"/>`;
+ let blocks="";for(let y=14;y<590;y+=96)for(let x=14;x<770;x+=104){blocks+=`<rect x="${x}" y="${y}" width="84" height="74" rx="6" fill="#241540"/>`;for(let k=0;k<5;k++){const wx=x+8+Math.floor(R()*64),wy=y+8+Math.floor(R()*54),c=R()<.5?"#ffd23f":R()<.5?"#ff2e88":"#19d3c5";blocks+=`<rect x="${wx}" y="${wy}" width="7" height="5" fill="${c}" opacity="${(.35+R()*.5).toFixed(2)}"/>`}}
+ s+=blocks;
+ s+=`<g stroke-width="2" opacity=".5"><path d="M0 104 H780 M0 392 H780" stroke="#ff2e88"/><path d="M108 0 V600 M420 0 V600" stroke="#19d3c5"/></g>`;
+ s+=`<path d="M790 0 C770 120 830 230 800 330 C772 440 830 520 810 600 L1000 600 L1000 0Z" fill="#0d3550"/>`;
+ s+=`<path d="M790 0 C770 120 830 230 800 330 C772 440 830 520 810 600" fill="none" stroke="#f2b36b" stroke-width="16"/>`;
+ s+=`<g fill="none" stroke="#19d3c5" stroke-width="2" opacity=".45"><path d="M860 90q20-10 40 0t40 0"/><path d="M880 260q20-10 40 0t40 0"/><path d="M850 440q20-10 40 0t40 0"/><path d="M900 540q20-10 40 0t40 0"/></g>`;
+ const palm=(x,y)=>`<g transform="translate(${x} ${y})"><path d="M0 0 Q4 -18 2 -34" stroke="#7a4a2a" stroke-width="4" fill="none"/><g fill="#19b37a"><path d="M2 -34 Q-16 -40 -24 -28 Q-10 -34 2 -32Z"/><path d="M2 -34 Q20 -42 28 -28 Q14 -34 2 -32Z"/><path d="M2 -34 Q-6 -52 -20 -50 Q-6 -44 2 -33Z"/><path d="M2 -34 Q12 -54 26 -48 Q10 -44 2 -33Z"/></g></g>`;
+ [[812,70],[830,190],[808,300],[818,420],[836,520]].forEach(p=>s+=palm(p[0],p[1]));
+ s+=`<path d="M${NODES.map(p=>p.join(" ")).join(" L")}" fill="none" stroke="#ffd23f" stroke-width="5" stroke-dasharray="3 12" stroke-linecap="round" opacity=".9"/>`;
+ s+=`<g transform="translate(700 78)"><rect x="-22" y="-70" width="44" height="70" fill="#2e1c52" stroke="#ff2e88" stroke-width="2"/><rect x="-12" y="-96" width="24" height="26" fill="#2e1c52" stroke="#ff2e88" stroke-width="2"/><line x1="0" y1="-96" x2="0" y2="-118" stroke="#ff2e88" stroke-width="3"/><circle cx="0" cy="-120" r="5" fill="#ff2e88"/></g><text x="736" y="40" font-family="Anton, Impact, sans-serif" font-size="22" fill="#ffd23f" stroke="#120a20" stroke-width="5" paint-order="stroke">BREVET · 24 JUIN</text>`;
+ NODES.forEach((p,i)=>{const n=i+1,open=n<=cur,done=S.missions[n]||0;
+  s+=`<g data-a="${open?'replay':''}" data-w="${n}" style="cursor:${open?'pointer':'default'}" role="button" aria-label="Mission ${n}">${n===cur?`<circle class="pulse" cx="${p[0]}" cy="${p[1]}" r="20" fill="none" stroke="#ff2e88" stroke-width="4"/>`:""}<circle cx="${p[0]}" cy="${p[1]}" r="17" fill="${n===cur?'#ff2e88':done?'#19d3c5':open?'#fff4fb':'#4a3a63'}" stroke="#120a20" stroke-width="3"/><text x="${p[0]}" y="${p[1]+7}" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="18" fill="${n===cur?'#fff':'#120a20'}">${n}</text></g>`});
+ STAGES.forEach((x,i)=>{if(i===4)return;const p=NODES[x.a-1];s+=`<text x="${i%2?760:18}" y="${p[1]-22}" text-anchor="${i%2?'end':'start'}" font-family="Anton, Impact, sans-serif" font-size="19" fill="#fff4fb" stroke="#120a20" stroke-width="5" paint-order="stroke">${esc(DIST[i].toUpperCase())}</text>`});
+ const f=NODES[cur-1];s+=`<g transform="translate(${f[0]-42} ${f[1]-58})"><g class="climber">${CAR(curCar().id,84,35)}</g></g>`;
+ return s+"</svg>"}
+const xp=()=>total()*100+S.mb.reduce((a,b)=>a+b.s*10,0)+S.dict.length*50;
+function topBar(){const r=Math.min(5,streak());return `<header class="top"><h1>Brevet City</h1><span class="hud"><span class="xp">XP ${xp().toLocaleString("fr-FR")}</span></span><span class="hud" title="Soirs d'affilée">RÉPUTATION <span class="st">${"★".repeat(r)}${"☆".repeat(5-r)}</span></span><button class="pbtn" data-a="parent">Espace parent</button></header>`}
+function showMap(){place="map";ACT={};const w=W[S.week-1],done=S.missions[S.week]||0,st=STAGES.findIndex(x=>S.week>=x.a&&S.week<=x.b),fri=new Date().getDay()===5,sat=new Date().getDay()===6;
+ view.innerHTML=topBar()+`<main class="wrap"><div class="mapbox">${mapSVG()}</div><div class="panel"><p class="kicker">Mission ${S.week} sur 24 · ${esc(DIST[st])}</p><h2 class="title" style="font-size:clamp(26px,4.4vw,38px)">${esc(w.t)}</h2><p class="muted">Missions jouées cette semaine : ${done} · Erreurs à retravailler : ${S.err.length}</p>
+ <div class="row"><button class="go big" data-a="${fri?'brevet':'mission'}">${fri?"Mini-brevet du vendredi":"Lancer la mission · 10 min"}</button></div>
+ <div class="row"><button class="sec" data-a="${fri?'mission':'brevet'}">${fri?"Mission normale":"Mini-brevet"}</button><button class="sec" data-a="dictee"${sat?' style="outline:3px solid var(--act)"':""}>Dictée flash</button><button class="sec" data-a="forge">Atelier du subjonctif</button><button class="sec" data-a="garage">Garage &amp; arsenal</button><button class="sec" data-a="fautes">Mes fautes</button>${done>=4&&S.week<24?`<button class="sec" data-a="nextwk">Passer à la semaine ${S.week+1}</button>`:""}</div>
+ ${S.week>1?`<p class="muted" style="margin-top:16px">Revoir une semaine :</p><div class="weeks">${W.slice(0,S.week).map((x,i)=>`<button class="wk ${i+1===S.week?'cur':''}" data-a="replay" data-w="${i+1}">S${i+1} · ${esc(x.t)}</button>`).join("")}</div>`:""}</div></main>`;
+ ACT.nextwk=()=>{S.week++;save();showMap()}}
+/* ---------- moteur de mission ---------- */
+function startMission(wk,brevet){M={xp0:xp(),gad:Object.fromEntries(GUNS.map(g=>[g.id,g.ch])),noGad:false,wk,w:W[wk-1],brevet,step:0,steps:["rappel","conn","gram","phrase","win"],ok:0,tot:0,end:Date.now()+600000,warned:false};place="mission";
+ view.innerHTML=`<div class="mbar"><div class="dots" id="dots"></div><div class="clock" id="clock"></div><button class="pbtn" data-a="home">Carte</button></div><main class="wrap"><section class="stage" id="stage"></section></main>`;
+ startTimer();runStep()}
+function startTimer(){stopTimer();timer=setInterval(tick,1000);tick()}
+function stopTimer(){if(timer)clearInterval(timer);timer=null}
+function tick(){const c=$("#clock");if(!c||!M)return;const left=Math.max(0,M.end-Date.now()),s=Math.ceil(left/1000),fr=left/600000;
+ c.innerHTML=`<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--act)" stroke-width="5" stroke-dasharray="${(fr*94.2).toFixed(1)} 94.2" transform="rotate(-90 18 18)" stroke-linecap="round"/></svg>${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+ if(left<=0&&!M.warned){M.warned=true;beep(true);c.insertAdjacentHTML("beforeend"," · 10 minutes : termine cet exercice")}}
+function stage(h){ACT={};const el=$("#stage");if(!el)return;el.innerHTML=h;window.scrollTo({top:0})}
+function next(){M.step++;if(M.steps&&M.step<M.steps.length-1)ride(runStep);else runStep()}
+function runStep(){$("#dots").innerHTML=M.steps.map((s,i)=>`<i class="${i<M.step?'done':i===M.step?'on':''}"></i>`).join("");({rappel:stepRappel,conn:stepConn,gram:stepGram,phrase:stepPhrase,win:stepWin})[M.steps[M.step]]()}
+/* un exercice, quel que soit son type */
+function ask(it,kick,done){if(it.b)return build(it,kick,done);if(it.t)return typing(it,kick,done);
+ const [q,o,ai,x]=it,order=shuffle(o.map((_,j)=>j));
+ Q={kind:"qcm",done:false};const btns=()=>[...document.querySelectorAll(".opt")],wrong=()=>btns().filter((b,k)=>order[k]!==ai&&!b.disabled);
+ Q.left=()=>wrong().length;Q.elim=()=>{const b=pick(wrong());if(b){b.disabled=true;b.classList.add("gone")}};
+ stage(kick+`<p class="q">${esc(q).replace("___",'<u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</u>')}</p><div class="opts">${order.map((j,k)=>`<button class="opt" data-o="${k}">${esc(o[j])}</button>`).join("")}</div>${gbar()}<div id="fb"></div>`);refreshG();
+ ACT.gd=useGad;let used=false;ACT.o=(k,btn)=>{if(used||btn.disabled)return;const ok=order[k]===ai;if(!ok&&shieldCatch(it,()=>{btn.disabled=true;btn.classList.add("no")}))return;used=true;result(ok,it);document.querySelectorAll(".opt")[order.indexOf(ai)].classList.add("ok");if(!ok)btn.classList.add("no");feedback(ok,x,done)}}
+function result(ok,it){const q=qOf(it),re=Q&&Q.retry;if(!re)track(QCAT[q]||"conn",q,ansOf(it),xOf(it),ok);M.tot++;if(ok){M.ok++;if(!re)delErr(it)}else if(!re)addErr(it);beep(ok);if(Q){Q.done=true;refreshG()}}
+function feedback(ok,x,done){const fb=$("#fb");if(ok){fb.innerHTML=`<p class="fbok">${pick(BRAVO)}</p>${linaSay("happy",pick(LL.ok),52)}${x?`<p class="expl">${esc(x)}</p>`:""}<div class="row"><button class="go" data-a="nx">Suivant</button></div>`}else{fb.innerHTML=`<div class="fault"><div class="foe laugh">${FAUTE}</div><p class="fbno"><span style="font-family:Anton,Impact,sans-serif;font-size:26px;text-transform:uppercase">Faute.</span> La bonne réponse est en vert.</p></div>${linaSay("hmm",pick(LL.ko),52)}${x?`<p class="expl">${esc(x)}</p>`:""}<div class="row"><button class="go" data-a="nx">Suivant</button></div>`}ACT.nx=done}
+function typing(it,kick,done){Q={kind:"typing",done:false,ans:it.ans[0]};Q.reveal=()=>{Q.hinted=true;const h=$("#hint2");if(h)h.innerHTML=`Début de la réponse : « <b>${esc(it.ans[0].slice(0,2))}</b>… »`};
+ stage(kick+`<p class="q">${esc(it.q).replace("___",'<u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</u>')}</p><p class="hint">Écris la forme exacte, avec les accents.</p><input type="text" id="ty" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="acc">${["â","ê","î","ô","û","é","è","à","ç"].map(c=>`<button data-a="ins" data-c="${c}">${c}</button>`).join("")}</div><p class="hint" id="hint2"></p><div class="row"><button class="go" data-a="ck">Vérifier</button></div>${gbar()}<div id="fb"></div>`);
+ const inp=$("#ty");inp.focus();let used=false;ACT.gd=useGad;
+ ACT.ins=b=>{const c=b.dataset.c,s=inp.selectionStart??inp.value.length;inp.value=inp.value.slice(0,s)+c+inp.value.slice(inp.selectionEnd??s);inp.focus();inp.setSelectionRange(s+1,s+1)};
+ ACT.ck=()=>{if(used)return;const v=norm(inp.value);if(!v)return;const ok=it.ans.some(a=>norm(a)===v);if(!ok&&shieldCatch(it,()=>{inp.value="";inp.focus()}))return;used=true;result(ok,it);inp.disabled=true;inp.style.borderColor=ok?"var(--good)":"var(--bad)";
+  feedback(ok,(ok?"":"Réponse attendue : « "+it.ans[0]+" ». ")+(it.x||""),done)};
+ inp.addEventListener("keydown",e=>{if(e.key==="Enter")ACT.ck&&ACT.ck()})}
+function build(it,kick,done){const parts=it.b,tiles=shuffle(parts.map((_,i)=>i));let got=[];Q={kind:"build",done:false,n:parts.length};Q.reveal=()=>{Q.hinted=true;got=[0,1];draw()};
+ const draw=()=>{stage(kick+`<p class="q">Remets la phrase dans l'ordre.</p><div class="line">${got.map(i=>esc(parts[i])).join(" ")||'<span class="muted">Touche les morceaux…</span>'}</div><div class="tiles">${tiles.map(i=>`<button class="tile" data-a="t" data-i="${i}" ${got.includes(i)?"disabled":""}>${esc(parts[i])}</button>`).join("")}</div><div class="row"><button class="sec" data-a="x">Effacer</button></div>${gbar()}<div id="fb"></div>`);ACT.gd=useGad;
+  ACT.t=b=>{const i=+b.dataset.i;if(got.includes(i))return;got.push(i);if(got.length<parts.length)return draw();const ok=got.every((g,j)=>g===j);if(!ok&&shieldCatch(it,()=>{got=[];draw()}))return;result(ok,it);draw();ACT={};
+   if(!ok)$(".line").insertAdjacentHTML("afterend",`<p class="expl"><b>Phrase attendue :</b> ${esc(parts.join(" ").replace("' ","'"))}</p>`);feedback(ok,it.x,done)};
+  ACT.x=()=>{got=[];draw()}};draw()}
+function series(items,label,done){let k=0;const go=()=>{if(k>=items.length)return done();const it=items[k];ask(it,`<p class="kicker">${label} · ${k+1} sur ${items.length}</p>`,()=>{k++;go()})};go()}
+/* étapes */
+function stepRappel(){const w=M.w,rb=B[w.r],errs=shuffle(S.err).slice(0,1).map(e=>e.it),wk=weakest(),weak=wk&&wk!==w.r?[pick(B[wk].items)]:[];
+ const items=errs.concat(weak,shuffle(rb.items)).slice(0,3);
+ stage(`<p class="kicker">Mission ${M.wk} · ${esc(DIST[STAGES.findIndex(x=>M.wk>=x.a&&M.wk<=x.b)])}</p><div class="banner"><h2>${esc(w.t)}</h2></div>${linaSay("happy",`Salut ${esc(nm())}, ici NOVA, l'ordinateur de bord de ta voiture. Ce soir : 4 épreuves en 10 minutes${M.brevet?", dont le mini-brevet":""}. Je te guide, tu réponds. Tes gadgets débloqués sont sous chaque question : leur effet est écrit dessus, et chacun a un nombre limité d'utilisations par soir.`)}<p class="hint">Rappel : ${errs.length?"une erreur de ton carnet, ":""}${weak.length?"ton point faible (« "+esc(CAT[wk])+" »), ":""}puis ${esc(rb.tag)}.</p><div class="row"><button class="go" data-a="g">Go</button></div>`);
+ ACT.g=()=>series(items,"1 · Rappel flash",next)}
+function stepConn(){const extra=w=>w.g.filter(k=>["cc","bo","conc","cond"].includes(k)).flatMap(k=>B[k].items);const pool=shuffle(CONN.concat(extra(M.w)));
+ const items=[pool.find(x=>!x.b),pool.find(x=>x.b),pool.filter(x=>!x.b)[1]].filter(Boolean);
+ series(items,"2 · Connecteurs",next)}
+function stepGram(){const w=M.w,all=w.g.flatMap(k=>B[k].items);
+ if(M.brevet){const items=shuffle(all).slice(0,4).concat(shuffle(B.reecr.items).slice(0,1));M.bStart=M.tot;M.bOk=M.ok;
+  stage(`<p class="kicker">3 · Mini-brevet</p><h2>5 questions, comme le jour J</h2><p class="hint">Prends ton temps : chaque question compte pour 2 points.</p><div class="row"><button class="go" data-a="g">Commencer</button></div>`);
+  ACT.g=()=>{M.noGad=true;series(items,"3 · Mini-brevet",()=>{M.noGad=false;const s=(M.ok-M.bOk)*2;S.mb.push({d:tk(new Date()),w:M.wk,s});save();next()})};return}
+ const items=shuffle(all).slice(0,4);series(items,"3 · Grammaire du jour",next)}
+function stepPhrase(){const pr=PR[M.w.p];
+ stage(`<p class="kicker">4 · Ma phrase</p><h2>${esc(pr.k)}</h2><p class="q" style="font-weight:400">${esc(pr.p)}</p><textarea id="ph" placeholder="Écris ta phrase ici…"></textarea><div class="acc">${["â","ê","î","û","é","è","à","ç","«","»"].map(c=>`<button data-a="ins" data-c="${c}">${c}</button>`).join("")}</div><div class="row"><button class="go" data-a="ck">J'ai fini</button></div><div id="fb"></div>`);
+ const ta=$("#ph");ACT.ins=b=>{const c=b.dataset.c,s=ta.selectionStart;ta.value=ta.value.slice(0,s)+c+ta.value.slice(ta.selectionEnd);ta.focus();ta.setSelectionRange(s+1,s+1)};
+ ACT.ck=()=>{const v=ta.value.trim();if(v.length<8)return;const hasC=pr.rx.test(v);
+  $("#fb").innerHTML=`<p class="${hasC?'fbok':'fbno'}" style="font-size:20px">${hasC?"Le connecteur demandé est bien là.":"Je ne trouve pas « "+esc(pr.k)+" » : relis la consigne."}</p>
+  <p class="hint">Vérifie toi-même :</p><div class="check">${["Le connecteur exprime bien la relation voulue.","Le mode est le bon (subjonctif après bien que, pour que, avant que…).","Les accords sont faits (verbe, participe, adjectifs).","La ponctuation est juste."].map((t,i)=>`<label><input type="checkbox" class="ckb"> ${t}</label>`).join("")}</div>
+  <p class="hint" style="margin-top:14px">Un modèle possible :</p><p class="model">${esc(pr.m)}</p><div class="row"><button class="go" data-a="nx">Valider</button></div>`;
+  S.phr.push({d:tk(new Date()),w:M.wk,t:v,k:pr.k});if(S.phr.length>80)S.phr.shift();
+  ACT.nx=()=>{const n=document.querySelectorAll(".ckb:checked").length;M.tot++;const good=hasC&&n>=3;if(good)M.ok++;track("phr",pr.p,pr.m,"Connecteur attendu : "+pr.k,good);save();next()}}}
+function stepWin(){stopTimer();const r=M.tot?M.ok/M.tot:1,st=r>=.85?3:r>=.6?2:1;S.missions[M.wk]=(S.missions[M.wk]||0)+1;const t=tk(new Date());if(!S.days.includes(t))S.days.push(t);savedGame();
+ const d=new Date(),mon=new Date(d);mon.setDate(d.getDate()-((d.getDay()+6)%7));const cells=["L","M","M","J","V","S","D"].map((l,i)=>{const x=new Date(mon);x.setDate(mon.getDate()+i);return `<div class="${S.days.includes(tk(x))?'on':''}">${l}</div>`}).join("");
+ const mb=M.brevet&&S.mb.length?S.mb[S.mb.length-1].s:null;
+ const wk=weakest(),x1=xp(),nu=CARS.concat(GUNS).filter(o=>o.xp>M.xp0&&o.xp<=x1);
+ stage(`<div class="banner"><h2>Mission réussie</h2></div>${linaSay("wow",pick(LL.win)+(nu.length?" Et regarde : "+nu.map(o=>"« "+esc(o.n)+" »").join(" et ")+" débloqué"+(nu.length>1?"s":"")+" au garage !":""))}<p class="q" style="text-align:center;color:var(--good);font-family:Anton,Impact,sans-serif">+${100+(mb||0)*10} XP</p><p class="q" style="text-align:center">Bien joué, ${esc(nm())} !</p><div class="stars">${STAR(st>=1)+STAR(st>=2)+STAR(st>=3)}</div><p class="q" style="text-align:center">${M.ok} bonnes réponses sur ${M.tot}${mb!==null?` · mini-brevet : ${mb}/10`:""}</p>${wk?`<p class="expl">Ton point à travailler en ce moment : <b>${esc(CAT[wk])}</b>. NOVA le glissera dans tes prochains rappels.</p>`:""}<p class="hint" style="margin-top:16px">Ma semaine :</p><div class="week7">${cells}</div><p class="muted" style="margin-top:10px">${streak()} soir${streak()>1?"s":""} d'affilée · ${S.err.length} erreur${S.err.length>1?"s":""} dans le carnet, reprises au prochain rappel.</p><div class="row"><button class="go" data-a="home">Retour au plan</button><button class="sec" data-a="garage">Garage</button></div>`)}
+/* ---------- dictée flash ---------- */
+function showDictee(){place="dictee";ACT={};const idx=S.dict.length%DICT.length,txt=DICT[idx],sents=txt.match(/[^.;!?]+[.;!?]+/g).map(s=>s.trim());
+ view.innerHTML=`<div class="mbar"><div class="dots"></div><button class="pbtn" data-a="home">Carte</button></div><main class="wrap"><section class="stage" id="stage"></section></main>`;
+ stage(`<p class="kicker">Dictée flash n° ${idx+1}</p><h2>Écoute, puis écris</h2>${canSpeak()?`<p class="hint">Chaque bouton lit un morceau. Tu peux le réécouter autant que tu veux.</p><div class="row">${sents.map((s,i)=>`<button class="sec" data-a="pl" data-i="${i}">Écouter ${i+1}</button>`).join("")}<button class="sec" data-a="all">Tout relire</button></div><details style="margin-top:8px"><summary class="muted">Pas de son ? Texte pour l'adulte qui lit la dictée</summary><p class="expl">${esc(txt)}</p></details>`:`<p class="hint">Aucune voix française sur cet appareil : demande à un adulte de lire le texte ci-dessous, phrase par phrase.</p><details><summary class="muted">Afficher le texte pour l'adulte</summary><p class="expl">${esc(txt)}</p></details>`}<textarea id="dt" style="margin-top:14px;min-height:160px" placeholder="Écris la dictée ici…" spellcheck="false" autocapitalize="off"></textarea><div class="acc">${["â","ê","î","û","é","è","à","ç","ù","ë","ï"].map(c=>`<button data-a="ins" data-c="${c}">${c}</button>`).join("")}</div><div class="row"><button class="go" data-a="ck">Corriger</button></div><div id="fb"></div>`);
+ const ta=$("#dt");ACT.ins=b=>{const c=b.dataset.c,s=ta.selectionStart;ta.value=ta.value.slice(0,s)+c+ta.value.slice(ta.selectionEnd);ta.focus();ta.setSelectionRange(s+1,s+1)};
+ const lit=b=>{document.querySelectorAll("[data-a=pl],[data-a=all]").forEach(x=>x.classList.remove("on"));b.classList.add("on");setTimeout(()=>b.classList.remove("on"),2500)};ACT.pl=b=>{lit(b);say(sents[+b.dataset.i],0.78)};ACT.all=b=>{lit(b);say(sents,0.85)};
+ ACT.ck=()=>{const v=ta.value.trim();if(v.length<10){$("#fb").innerHTML=`<p class="fbno">Écoute la dictée et écris au moins une phrase avant de corriger.</p>`;ta.focus();return}const res=diff(txt,v);S.dict.push({d:tk(new Date()),i:idx,e:res.errors});const st=S.st.dict||(S.st.dict={ok:0,ko:0});st.ko+=res.errors;st.ok+=Math.max(0,res.words-res.errors);res.missed.forEach(w=>S.dmiss[w]=(S.dmiss[w]||0)+1);savedGame();
+  $("#fb").innerHTML=`<p class="${res.errors===0?'fbok':'fbno'}" style="font-size:22px">${res.errors===0?"Zéro faute, bravo !":res.errors+" mot"+(res.errors>1?"s":"")+" à corriger"}</p><p class="hint">Le texte, avec tes erreurs soulignées :</p><div class="dict">${res.html}</div><p class="muted" style="margin-top:10px">Recopie dans ton carnet chaque mot souligné avec la règle qui l'explique.</p><div class="row"><button class="go" data-a="home">Terminer</button></div>`}}
+function diff(ref,got){const tok=s=>s.replace(/[’]/g,"'").replace(/([«»;:!?.,])/g," $1 ").split(/\s+/).filter(Boolean);const a=tok(ref),b=tok(got);const n=a.length,m=b.length,L=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+ for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=a[i]===b[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+ let i=0,j=0,out=[],errors=0,missed=[];while(i<n){if(j<m&&a[i]===b[j]){out.push(esc(a[i]));i++;j++}else if(j<m&&L[i][j+1]>=L[i+1][j]){j++}else{const isP=/^[«»;:!?.,]$/.test(a[i]);if(!isP){errors++;missed.push(a[i])}out.push(`<span class="${isP?'miss':'ko'}">${esc(a[i])}</span>`);i++}}
+ return {errors,missed,words:a.filter(t=>!/^[«»;:!?.,]$/.test(t)).length,html:out.join(" ").replace(/ ([,.])/g,"$1")}}
+/* ---------- la forge du subjonctif ---------- */
+function showForge(){place="forge";view.innerHTML=`<div class="mbar"><div class="dots"></div><button class="pbtn" data-a="home">Carte</button></div><main class="wrap"><section class="stage" id="stage"></section></main>`;
+ M={wk:S.week,ok:0,tot:0};const items=shuffle(B.isj3.items.filter(x=>x.t).concat(B.isj.items.filter(x=>x.t))).slice(0,8);
+ stage(`<p class="kicker">Atelier du subjonctif</p><div class="banner"><h2>Imparfait du subjonctif</h2></div><p class="model">Pars du passé simple « tu… » et ajoute « -se » : tu vins → que je vinsse → qu'il vînt.</p><p class="hint">8 formes à forger, accents compris.</p><div class="row"><button class="go" data-a="g">Entrer dans l'atelier</button></div>`);
+ ACT.g=()=>series(items,"Atelier",()=>{savedGame();stage(`<p class="kicker">Atelier du subjonctif</p><h2>${M.ok} formes justes sur ${M.tot}</h2><p class="hint">Les formes ratées sont dans ton carnet d'erreurs.</p><div class="row"><button class="go" data-a="home">Retour au plan</button><button class="sec" data-a="forge">Encore une série</button></div>`)})}
+/* ---------- espace parent ---------- */
+function bars(rows,max){return `<div class="bars">${rows.map(r=>`<div class="bar"><span>${esc(r[0])}</span><span><b style="width:${Math.max(3,r[1]/max*100)}%"></b></span><span>${esc(r[2])}</span></div>`).join("")}</div>`}
+function showParent(){place="parent";ACT={};const mb=S.mb.slice(-10),dc=S.dict.slice(-8);
+ view.innerHTML=topBar()+`<main class="wrap"><div class="panel"><h2 class="title" style="font-size:34px">Espace parent</h2><p class="muted" id="sync">${dbRef?"La progression est enregistrée en ligne, dans votre compte.":"La progression est enregistrée dans ce navigateur."}</p><div class="bkp" style="margin:12px 0 18px;padding:14px;border:1px dashed rgba(127,127,127,.5);border-radius:14px"><h3 style="margin:0 0 6px">Sauvegarde automatique</h3><p class="muted" style="margin:0 0 8px">La progression s'enregistre toute seule après chaque réponse et à la fin de chaque partie. Dernier enregistrement : <b>${fmtD(S.updated)}</b>.</p><p class="muted" style="margin:0 0 8px">Pour continuer sur un autre téléphone ou depuis un autre lien : envoyez le code de sauvegarde (par exemple par WhatsApp), puis collez-le dans l'espace parent de l'autre appareil. Astuce : ouvrez le jeu dans Safari ou Chrome plutôt que dans le navigateur de WhatsApp, qui peut effacer la progression.</p><div class="row"><button class="sec" data-a="bkc">Copier le code de sauvegarde</button>${navigator.share?'<button class="sec" data-a="bks">Envoyer le code</button>':""}</div><textarea id="bkt" style="margin-top:10px;min-height:70px;width:100%" placeholder="Pour reprendre une partie : collez ici un code de sauvegarde…" spellcheck="false" autocapitalize="off"></textarea><div class="row"><button class="sec" data-a="bkr">Reprendre la partie de ce code</button></div><p class="hint" id="bkm"></p></div>
+ <div class="grid2"><div><label class="lb" for="pn">Prénom</label><input type="text" id="pn" value="${esc(S.name)}" placeholder="Prénom" autocomplete="off">
+ <label class="lb" for="wk">Semaine du programme</label><select id="wk">${W.map((w,i)=>`<option value="${i+1}" ${i+1===S.week?"selected":""}>S${i+1} · ${esc(w.t)}</option>`).join("")}</select>
+ <label class="lb" for="vc">Voix pour la dictée</label><select id="vc"><option value="">Automatique : meilleure voix de France</option>${frVoices.map(v=>`<option value="${esc(v.name)}" ${S.voice===v.name?"selected":""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}${tts?`<option value="claude" ${S.voice==="claude"?"selected":""}>Voix intégrée</option>`:""}</select>
+ <div class="row"><button class="sec" data-say="Bien qu'il fût tard, le jeune homme ne voulait pas rentrer.">Écouter un exemple</button></div>
+ <label class="chk"><input type="checkbox" id="sl" ${S.slow?"checked":""}> Voix lente</label>
+ <h3 style="margin-top:22px">Mini-brevets (sur 10)</h3>${mb.length?bars(mb.map(x=>[x.d.slice(8)+"/"+x.d.slice(5,7)+" · S"+x.w,x.s,x.s+"/10"]),10):'<p class="muted">Pas encore de mini-brevet.</p>'}
+ <h3 style="margin-top:22px">Dictées (mots à corriger)</h3>${dc.length?bars(dc.map(x=>[x.d.slice(8)+"/"+x.d.slice(5,7)+" · n°"+(x.i+1),Math.max(1,x.e),String(x.e)]),Math.max(...dc.map(x=>x.e),1)):'<p class="muted">Pas encore de dictée.</p>'}</div>
+ <div>${errorReport()}<h3 style="margin-top:22px">Carnet d'erreurs à revoir (${S.err.length})</h3>${S.err.length?S.err.slice(-12).reverse().map(e=>{const it=e.it;const q=it.q||it[0];const a=it.t?it.ans[0]:it.b?it.b.join(" "):it[1][it[2]];return `<div class="err"><b>${esc(q)}</b><br><span class="muted">Réponse : ${esc(a)}</span></div>`}).join(""):'<p class="muted">Vide pour l\'instant.</p>'}
+ <h3 style="margin-top:22px">Dernières phrases écrites</h3>${S.phr.length?S.phr.slice(-5).reverse().map(p=>`<div class="err"><span class="muted">${esc(p.k)}</span><br>${esc(p.t)}</div>`).join(""):'<p class="muted">Aucune phrase pour l\'instant.</p>'}
+ <h3 style="margin-top:22px">Recommencer</h3><div class="row" id="rz"><button class="sec" data-a="r1">Effacer la progression</button></div></div></div>
+ <div class="row"><button class="go" data-a="home">Retour au plan</button></div></div></main>`;
+ $("#pn").addEventListener("change",e=>{S.name=e.target.value.slice(0,30);save()});
+ $("#wk").addEventListener("change",e=>{S.week=+e.target.value;save()});
+ $("#vc").addEventListener("change",e=>{S.voice=e.target.value;save()});
+ $("#sl").addEventListener("change",e=>{S.slow=e.target.checked;save()});
+ ACT.r1=()=>{$("#rz").innerHTML=`<button class="go" data-a="r2">Oui, tout effacer</button><button class="sec" data-a="parent">Annuler</button>`};
+ ACT.r2=()=>{const n=S.name;S=clone(DEF);S.name=n;save();showParent()};
+ const bkm=m=>{$("#bkm").textContent=m};
+ ACT.bkc=async()=>{save();const c=mkCode();try{await navigator.clipboard.writeText(c);bkm("Code copié. Collez-le dans un message pour l'envoyer.")}catch(e){const t=$("#bkt");t.value=c;t.focus();t.select();bkm("Le code est affiché dans la case : sélectionnez-le et copiez-le.")}};
+ ACT.bks=async()=>{save();try{await navigator.share({title:"Sauvegarde Brevet City",text:mkCode()})}catch(e){}};
+ ACT.bkr=()=>{const d=readCode($("#bkt").value);if(!d){bkm("Ce code n'est pas reconnu. Vérifiez qu'il a été copié en entier.");return}S=Object.assign(clone(DEF),d);savedGame();showParent();bkm("Partie reprise : progression du "+fmtD(d.updated)+".")}}
+/* ---------- démarrage ---------- */
+showMap();
+(async()=>{try{if(!window.claude||!claude.use)return;const t=await claude.use("tts");if(t)tts=t}catch(e){}})();
+(async()=>{try{if(!window.claude||!claude.use)return;const db=await claude.use("db"),u=await claude.use("user");if(!db||!u)return;const id=await u.id();if(!id)return;const ref=db.doc("data/users/"+id+"/progress");
+ const snap=await Promise.race([ref.get(),new Promise((_,r)=>setTimeout(()=>r(0),10000))]);dbRef=ref;
+ if(snap.exists){const d=snap.data();if(d&&d.v===1&&(d.updated||0)>(S.updated||0)){S=Object.assign(clone(DEF),clone(d));try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(place==="map")showMap();if(place==="parent")showParent()}}
+ else if(S.updated)save();const sy=$("#sync");if(sy)sy.textContent="La progression est enregistrée en ligne, dans votre compte."}catch(e){}})();
+}
+</script>
+</body>
+</html>
